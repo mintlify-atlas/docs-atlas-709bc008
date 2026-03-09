@@ -1,0 +1,411 @@
+---
+title: "Partido"
+description: "Match entity representing football matches between teams in the tournament"
+---
+
+## Overview
+
+The `Partido` (Match) entity represents a football match between two teams in the tournament management system. Each match has a date/time, a home team (local), a visiting team (visitante), and scores for both teams.
+
+## Properties
+
+<ParamField path="Id" type="int">
+  Unique identifier for the match.
+</ParamField>
+
+<ParamField path="FechaHora" type="DateTime" required>
+  Date and time when the match is scheduled or was played.
+  
+  **Validation Rules:**
+  - Required field (cannot be empty)
+  - Must be a valid DateTime value
+  
+  **Display Name:** "Fecha y hora del partido"
+  
+  **Error Message:**
+  - Required: "La fecha del partido es obligatoria."
+</ParamField>
+
+<ParamField path="Local" type="Equipo?">
+  The home team playing in the match.
+  
+  **Nullable:** Yes
+  
+  **Relationship:** Many-to-One (Many matches can have the same home team)
+  
+  **Related Entity:** [Equipo](/api/models/equipo)
+  
+  **Note:** This property is referenced by the `[InverseProperty("Local")]` attribute in the Equipo entity's `PartidosLocal` collection.
+</ParamField>
+
+<ParamField path="MarcadorLocal" type="int" required>
+  Score (goals) for the home team.
+  
+  **Validation Rules:**
+  - Required field
+  - Minimum value: 0
+  - Maximum value: 100
+  
+  **Display Name:** "Marcador Local"
+  
+  **Error Messages:**
+  - Required: "El Marcador Local es obligatorio."
+  - Range: "Marcador Local debe estar en un rango entre 0 y 100"
+</ParamField>
+
+<ParamField path="Visitante" type="Equipo?">
+  The visiting (away) team playing in the match.
+  
+  **Nullable:** Yes
+  
+  **Relationship:** Many-to-One (Many matches can have the same visiting team)
+  
+  **Related Entity:** [Equipo](/api/models/equipo)
+  
+  **Note:** This property is referenced by the `[InverseProperty("Visitante")]` attribute in the Equipo entity's `PartidosVisitante` collection.
+</ParamField>
+
+<ParamField path="MarcadorVisitante" type="int" required>
+  Score (goals) for the visiting team.
+  
+  **Validation Rules:**
+  - Required field
+  - Minimum value: 0
+  - Maximum value: 100
+  
+  **Display Name:** "Marcador Visitante"
+  
+  **Error Messages:**
+  - Required: "El Marcador Visitante es obligatoria."
+  - Range: "Marcador Visitante debe estar en un rango entre 0 y 100"
+</ParamField>
+
+## Relationships
+
+The `Partido` entity has two critical many-to-one relationships with the `Equipo` entity:
+
+### Home Team (Local)
+
+<ResponseField name="Local" type="Equipo">
+  The team playing at home. Multiple matches can have the same home team.
+  
+  **Navigation Property:** `Local`
+  
+  **Inverse Property:** `PartidosLocal` in Equipo entity
+  
+  **Related Entity:** [Equipo](/api/models/equipo)
+  
+  **Cardinality:** Many matches to one team (as home team)
+</ResponseField>
+
+### Visiting Team (Visitante)
+
+<ResponseField name="Visitante" type="Equipo">
+  The team playing away. Multiple matches can have the same visiting team.
+  
+  **Navigation Property:** `Visitante`
+  
+  **Inverse Property:** `PartidosVisitante` in Equipo entity
+  
+  **Related Entity:** [Equipo](/api/models/equipo)
+  
+  **Cardinality:** Many matches to one team (as visiting team)
+</ResponseField>
+
+<Note>
+The `Local` and `Visitante` properties create two separate relationships with the same Equipo entity. The Equipo entity uses `[InverseProperty]` attributes to distinguish between these two relationships, preventing ambiguous foreign key references.
+</Note>
+
+## Validation Attributes
+
+The `Partido` entity uses the following Data Annotations:
+
+- `[Required]` - Ensures date/time and both scores are mandatory
+- `[Range]` - Validates that scores are between 0 and 100
+- `[Display]` - Provides user-friendly display names
+- `[DisplayFormat]` - Configures empty value handling
+
+<Warning>
+While the validation allows scores up to 100, typical football matches rarely exceed 10 goals per team. The high limit (100) may be intended to accommodate future use cases or extraordinary circumstances.
+</Warning>
+
+## Code Examples
+
+### Entity Definition
+
+```csharp
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace Torneo.App.Dominio
+{
+    public class Partido
+    {
+        public int Id { get; set; }
+
+        [Display(Name = "Fecha y hora del partido")]
+        [Required(AllowEmptyStrings=false, 
+            ErrorMessage = "La fecha del partido es obligatoria.")]       
+        [DisplayFormat(ConvertEmptyStringToNull=false)]
+        public DateTime FechaHora { get; set; }
+        
+        public Equipo? Local { get; set; } 
+
+        [Display(Name = "Marcador Local")]
+        [Required(ErrorMessage = "El Marcador Local es obligatorio.")]       
+        [Range(0, 100, ErrorMessage = "Marcador Local debe estar en un rango entre 0 y 100")]
+        public int MarcadorLocal { get; set; }
+        
+        public Equipo? Visitante { get; set; } 
+
+        [Display(Name = "Marcador Visitante")]
+        [Required(ErrorMessage = "El Marcador Visitante es obligatoria.")]       
+        [Range(0, 100, ErrorMessage = "Marcador Visitante debe estar en un rango entre 0 y 100")]
+        public int MarcadorVisitante { get; set; }
+    }
+}
+```
+
+### Creating a Match
+
+```csharp
+var partido = new Partido
+{
+    FechaHora = new DateTime(2024, 3, 15, 20, 0, 0),
+    Local = equipoReal,
+    MarcadorLocal = 3,
+    Visitante = equipoBarcelona,
+    MarcadorVisitante = 2
+};
+```
+
+### Scheduling a Future Match
+
+```csharp
+var proximoPartido = new Partido
+{
+    FechaHora = DateTime.Now.AddDays(7),
+    Local = equipoAtletico,
+    Visitante = equipoMillonarios,
+    MarcadorLocal = 0,
+    MarcadorVisitante = 0
+};
+```
+
+### Recording Match Results
+
+```csharp
+// Update scores after match completion
+partido.MarcadorLocal = 2;
+partido.MarcadorVisitante = 1;
+```
+
+### Valid Score Examples
+
+```csharp
+// Valid match scores
+MarcadorLocal = 0;      // Draw or shutout
+MarcadorVisitante = 0;
+
+MarcadorLocal = 3;      // Typical football score
+MarcadorVisitante = 2;
+
+MarcadorLocal = 5;      // High-scoring match
+MarcadorVisitante = 4;
+```
+
+### Invalid Score Examples
+
+<Warning>
+These examples will fail validation:
+</Warning>
+
+```csharp
+// Invalid scores
+MarcadorLocal = -1;     // Negative score
+MarcadorVisitante = 101; // Above maximum (100)
+```
+
+### Querying Matches
+
+```csharp
+// Get all matches for a team
+var teamMatches = context.Partidos
+    .Where(p => p.Local.Id == teamId || p.Visitante.Id == teamId)
+    .OrderBy(p => p.FechaHora)
+    .ToList();
+
+// Get upcoming matches
+var upcomingMatches = context.Partidos
+    .Where(p => p.FechaHora > DateTime.Now)
+    .OrderBy(p => p.FechaHora)
+    .ToList();
+
+// Get completed matches
+var completedMatches = context.Partidos
+    .Where(p => p.FechaHora < DateTime.Now)
+    .OrderByDescending(p => p.FechaHora)
+    .ToList();
+
+// Get high-scoring matches
+var highScoringMatches = context.Partidos
+    .Where(p => (p.MarcadorLocal + p.MarcadorVisitante) > 5)
+    .ToList();
+```
+
+### Match Statistics
+
+```csharp
+// Calculate winner
+public enum MatchResult { HomeWin, AwayWin, Draw }
+
+public MatchResult GetResult(Partido partido)
+{
+    if (partido.MarcadorLocal > partido.MarcadorVisitante)
+        return MatchResult.HomeWin;
+    else if (partido.MarcadorVisitante > partido.MarcadorLocal)
+        return MatchResult.AwayWin;
+    else
+        return MatchResult.Draw;
+}
+
+// Total goals in match
+var totalGoals = partido.MarcadorLocal + partido.MarcadorVisitante;
+
+// Goal difference
+var goalDifference = Math.Abs(partido.MarcadorLocal - partido.MarcadorVisitante);
+```
+
+### Team Performance Analysis
+
+```csharp
+// Get team's home record
+var homeRecord = context.Partidos
+    .Where(p => p.Local.Id == teamId && p.FechaHora < DateTime.Now)
+    .Select(p => new
+    {
+        Wins = p.MarcadorLocal > p.MarcadorVisitante ? 1 : 0,
+        Draws = p.MarcadorLocal == p.MarcadorVisitante ? 1 : 0,
+        Losses = p.MarcadorLocal < p.MarcadorVisitante ? 1 : 0,
+        GoalsFor = p.MarcadorLocal,
+        GoalsAgainst = p.MarcadorVisitante
+    })
+    .ToList();
+
+// Get team's away record
+var awayRecord = context.Partidos
+    .Where(p => p.Visitante.Id == teamId && p.FechaHora < DateTime.Now)
+    .Select(p => new
+    {
+        Wins = p.MarcadorVisitante > p.MarcadorLocal ? 1 : 0,
+        Draws = p.MarcadorVisitante == p.MarcadorLocal ? 1 : 0,
+        Losses = p.MarcadorVisitante < p.MarcadorLocal ? 1 : 0,
+        GoalsFor = p.MarcadorVisitante,
+        GoalsAgainst = p.MarcadorLocal
+    })
+    .ToList();
+```
+
+### Head-to-Head Records
+
+```csharp
+// Get all matches between two teams
+public List<Partido> GetHeadToHead(int team1Id, int team2Id)
+{
+    return context.Partidos
+        .Where(p => 
+            (p.Local.Id == team1Id && p.Visitante.Id == team2Id) ||
+            (p.Local.Id == team2Id && p.Visitante.Id == team1Id))
+        .OrderBy(p => p.FechaHora)
+        .ToList();
+}
+```
+
+### Match Schedule Management
+
+```csharp
+// Get matches for a specific date
+var matchesOnDate = context.Partidos
+    .Where(p => p.FechaHora.Date == specificDate.Date)
+    .OrderBy(p => p.FechaHora)
+    .ToList();
+
+// Get this week's matches
+var weekStart = DateTime.Now.Date;
+var weekEnd = weekStart.AddDays(7);
+var thisWeekMatches = context.Partidos
+    .Where(p => p.FechaHora >= weekStart && p.FechaHora < weekEnd)
+    .OrderBy(p => p.FechaHora)
+    .ToList();
+```
+
+### Validation Example
+
+```csharp
+// Ensure local and visitante are different teams
+public bool ValidateTeamsAreDifferent(Partido partido)
+{
+    if (partido.Local?.Id == partido.Visitante?.Id)
+    {
+        throw new ValidationException(
+            "Un equipo no puede jugar contra sí mismo.");
+    }
+    return true;
+}
+```
+
+## Business Rules
+
+### Match Scheduling
+
+<Note>
+Common business rules that may need implementation:
+- A team cannot play against itself
+- Teams should not have overlapping match schedules
+- Matches should be scheduled within tournament dates
+- Consider rest days between matches for teams
+</Note>
+
+### Score Recording
+
+<Note>
+For unplayed matches:
+- Consider initializing scores to 0 or null
+- Distinguish between scheduled matches (future) and completed matches (past)
+- Implement logic to prevent score changes for future matches
+</Note>
+
+### Home/Away Balance
+
+```csharp
+// Ensure fair distribution of home and away matches
+public int GetHomeMatchCount(int teamId)
+{
+    return context.Partidos.Count(p => p.Local.Id == teamId);
+}
+
+public int GetAwayMatchCount(int teamId)
+{
+    return context.Partidos.Count(p => p.Visitante.Id == teamId);
+}
+```
+
+## Database Mapping
+
+<Note>
+The `Partido` entity is mapped to a database table with the same name. The `Id` property serves as the primary key and is auto-generated.
+
+Foreign keys are created for:
+- `Local` relationship (LocalId pointing to Equipo)
+- `Visitante` relationship (VisitanteId pointing to Equipo)
+
+The relationship configuration requires `[InverseProperty]` attributes in the Equipo entity to distinguish between the two foreign keys.
+</Note>
+
+## Related Entities
+
+- [Equipo](/api/models/equipo) - Teams participating in the match (both home and away)
+- [DirectorTecnico](/api/models/director-tecnico) - Technical directors of teams (indirect)
+- [Jugador](/api/models/jugador) - Players on teams in the match (indirect)
+- [Municipio](/api/models/municipio) - Municipalities of teams (indirect)
+- [Posicion](/api/models/posicion) - Player positions (indirect)

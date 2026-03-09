@@ -1,0 +1,304 @@
+---
+title: 'Data Contexts'
+description: 'DataContext and IdentityDataContext for Entity Framework Core'
+icon: 'database'
+---
+
+## Overview
+
+The Tournament Management App uses two separate Entity Framework Core database contexts:
+
+- **DataContext**: Manages tournament domain entities (teams, players, matches, etc.)
+- **IdentityDataContext**: Manages ASP.NET Core Identity user authentication and data protection keys
+
+Both contexts are configured to use SQLite by default, with SQL Server support available as an alternative.
+
+---
+
+## DataContext
+
+The `DataContext` class manages all tournament-related entities and is defined in the `Torneo.App.Persistencia` namespace.
+
+### Location
+
+`Torneo.App.Persistencia/DataContext.cs`
+
+### DbSet Properties
+
+The context exposes the following entity sets:
+
+<ParamField path="Municipios" type="DbSet<Municipio>">
+  Collection of municipalities where teams are located. Each municipality can have multiple teams.
+</ParamField>
+
+<ParamField path="DirectoresTecnicos" type="DbSet<DirectorTecnico>">
+  Collection of technical directors (coaches). Each director can manage multiple teams.
+</ParamField>
+
+<ParamField path="Equipos" type="DbSet<Equipo>">
+  Collection of teams participating in tournaments. Teams are associated with municipalities and directors.
+</ParamField>
+
+<ParamField path="Partidos" type="DbSet<Partido>">
+  Collection of matches between teams. Each match has a local (home) and visitante (away) team.
+</ParamField>
+
+<ParamField path="Posiciones" type="DbSet<Posicion>">
+  Collection of player positions (e.g., forward, midfielder, defender, goalkeeper).
+</ParamField>
+
+<ParamField path="Jugadores" type="DbSet<Jugador>">
+  Collection of players. Each player belongs to a team and has a specific position.
+</ParamField>
+
+### Entity Relationships
+
+The domain model includes the following key relationships:
+
+- **Municipio → Equipos**: One-to-many (a municipality can have multiple teams)
+- **DirectorTecnico → Equipos**: One-to-many (a director can manage multiple teams)
+- **Equipo → Jugadores**: One-to-many (a team has multiple players)
+- **Equipo → Partidos**: A team can be the local or visitante in multiple matches
+- **Posicion → Jugadores**: One-to-many (a position can have multiple players)
+
+### Source Code
+
+```csharp Torneo.App.Persistencia/DataContext.cs
+using Microsoft.EntityFrameworkCore;
+using Torneo.App.Dominio;
+using System;
+
+namespace Torneo.App.Persistencia
+{
+    public class DataContext : DbContext
+    {
+        public DbSet<Municipio> Municipios { get; set; }
+        public DbSet<DirectorTecnico> DirectoresTecnicos { get; set; }
+        public DbSet<Equipo> Equipos { get; set; }
+        public DbSet<Partido> Partidos { get; set; }
+        public DbSet<Posicion> Posiciones { get; set; }
+        public DbSet<Jugador> Jugadores { get; set; }
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            if (!optionsBuilder.IsConfigured)
+            {   
+                var connectionString = Environment.GetEnvironmentVariable("DATABASE_CONNECTION_STRING") 
+                    ?? "Data Source=/app/Torneo.db";
+                optionsBuilder.UseSqlite(connectionString);
+            }
+        }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+            // Set all foreign key delete behavior to Restrict
+            foreach (var relationship in modelBuilder.Model.GetEntityTypes()
+                .SelectMany(e => e.GetForeignKeys()))
+            {
+                relationship.DeleteBehavior = DeleteBehavior.Restrict;
+            }
+        }
+    }
+}
+```
+
+### Configuration
+
+#### Connection String
+
+The `DataContext` reads the connection string from the `DATABASE_CONNECTION_STRING` environment variable. If not set, it defaults to a SQLite database at `/app/Torneo.db`.
+
+<CodeGroup>
+
+```bash Environment Variable
+export DATABASE_CONNECTION_STRING="Data Source=/app/Torneo.db"
+```
+
+```csharp SQL Server Alternative
+// Uncomment in DataContext.cs to use SQL Server instead of SQLite
+var password = Environment.GetEnvironmentVariable("MSSQL_SA_PASSWORD");
+optionsBuilder.UseSqlServer(
+    $"Server=sql-server;Database=Torneo;User Id=sa;Password={password};TrustServerCertificate=true"
+);
+```
+
+</CodeGroup>
+
+#### Delete Behavior
+
+All foreign key relationships are configured with `DeleteBehavior.Restrict` to prevent cascading deletes. This ensures referential integrity and prevents accidental data loss.
+
+<Note>
+  When deleting entities with related data, you must first remove or update the dependent entities to avoid foreign key constraint violations.
+</Note>
+
+---
+
+## IdentityDataContext
+
+The `IdentityDataContext` class manages ASP.NET Core Identity user accounts and data protection keys. It inherits from `IdentityDbContext<IdentityUser>` and implements `IDataProtectionKeyContext`.
+
+### Location
+
+`Torneo.App.Frontend/Areas/Identity/Data/IdentityDataContext.cs`
+
+### DbSet Properties
+
+<ParamField path="DataProtectionKeys" type="DbSet<DataProtectionKey>">
+  Collection of ASP.NET Core Data Protection keys used for encrypting authentication cookies and other sensitive data.
+</ParamField>
+
+### Inherited Tables
+
+The `IdentityDataContext` automatically includes the following ASP.NET Core Identity tables:
+
+- `AspNetUsers` - User accounts
+- `AspNetRoles` - User roles
+- `AspNetUserRoles` - User-role mappings
+- `AspNetUserClaims` - User claims
+- `AspNetUserLogins` - External login providers
+- `AspNetUserTokens` - Authentication tokens
+- `AspNetRoleClaims` - Role claims
+
+### Source Code
+
+```csharp Torneo.App.Frontend/Areas/Identity/Data/IdentityDataContext.cs
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
+
+namespace Torneo.App.Frontend.Areas.Identity.Data;
+
+public class IdentityDataContext : IdentityDbContext<IdentityUser>, IDataProtectionKeyContext
+{
+    public IdentityDataContext(DbContextOptions<IdentityDataContext> options)
+        : base(options)
+    {
+    }
+    
+    // DbSet to store data protection keys
+    public DbSet<DataProtectionKey> DataProtectionKeys { get; set; }
+
+    protected override void OnModelCreating(ModelBuilder builder)
+    {
+        base.OnModelCreating(builder);
+        // Customize the ASP.NET Identity model and override the defaults if needed.
+    }
+}
+```
+
+### Registration in Program.cs
+
+The `IdentityDataContext` is registered in the ASP.NET Core dependency injection container during application startup:
+
+```csharp Program.cs
+var connectionString = Environment.GetEnvironmentVariable("DATABASE_CONNECTION_STRING") 
+    ?? "Data Source=/app/Torneo.db";
+
+// Register IdentityDataContext
+builder.Services.AddDbContext<IdentityDataContext>(options => 
+    options.UseSqlite(connectionString));
+
+// Register ASP.NET Core Identity with Entity Framework stores
+builder.Services.AddDefaultIdentity<IdentityUser>(options => 
+    options.SignIn.RequireConfirmedAccount = true)
+    .AddEntityFrameworkStores<IdentityDataContext>();
+
+// Configure Data Protection to persist keys to database
+builder.Services.AddDataProtection()
+    .PersistKeysToDbContext<IdentityDataContext>()
+    .SetApplicationName("TorneoApp");
+```
+
+---
+
+## Identity Configuration
+
+The application includes additional Identity configuration for security policies:
+
+### Lockout Policy
+
+```csharp Lockout Settings
+builder.Services.Configure<IdentityOptions>(options =>
+{
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+    options.Lockout.MaxFailedAccessAttempts = 5;
+    options.Lockout.AllowedForNewUsers = true;
+});
+```
+
+### Password Policy
+
+```csharp Password Requirements
+builder.Services.Configure<IdentityOptions>(options =>
+{
+    options.Password.RequireDigit = true;
+    options.Password.RequireLowercase = true;
+    options.Password.RequireNonAlphanumeric = true;
+    options.Password.RequireUppercase = true;
+    options.Password.RequiredLength = 6;
+    options.Password.RequiredUniqueChars = 1;
+});
+```
+
+---
+
+## Health Checks
+
+The application includes health check endpoints to verify database connectivity:
+
+```csharp Health Check Configuration
+builder.Services.AddHealthChecks()
+    .AddSqlite(connectionString, 
+        name: "database", 
+        failureStatus: HealthStatus.Unhealthy, 
+        tags: new[] { "db" });
+
+app.MapHealthChecks("/health");
+```
+
+Access the health check endpoint at `http://localhost/health` to verify database status.
+
+---
+
+## Database Providers
+
+The application supports multiple database providers:
+
+### SQLite (Default)
+
+```csharp SQLite
+optionsBuilder.UseSqlite("Data Source=/app/Torneo.db");
+```
+
+<Note>
+  SQLite is used by default for simplicity and portability. It's suitable for development and small-scale deployments.
+</Note>
+
+### SQL Server (Optional)
+
+```csharp SQL Server
+var password = Environment.GetEnvironmentVariable("MSSQL_SA_PASSWORD");
+optionsBuilder.UseSqlServer(
+    $"Server=sql-server;Database=Torneo;User Id=sa;Password={password};TrustServerCertificate=true"
+);
+```
+
+<Warning>
+  To use SQL Server, uncomment the SQL Server configuration in `DataContext.cs` and comment out the SQLite configuration. Ensure you have the appropriate connection string and SQL Server instance available.
+</Warning>
+
+---
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Migrations" icon="arrows-rotate" href="/api/data/migrations">
+    Learn how to create and apply Entity Framework migrations
+  </Card>
+  <Card title="Repositories" icon="folder-tree" href="/api/repositories/overview">
+    Explore the repository pattern implementation
+  </Card>
+</CardGroup>

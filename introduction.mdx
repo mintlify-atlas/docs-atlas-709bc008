@@ -1,0 +1,118 @@
+---
+title: 'Welcome to Tournament Management App'
+description: 'A comprehensive web application for managing football tournaments, teams, players, and matches built with .NET Core and Entity Framework.'
+---
+
+## What is Tournament Management App?
+
+Tournament Management App is a full-featured web application designed to streamline the management of football tournaments. Built with ASP.NET Core 8.0 and Entity Framework, it provides a comprehensive platform for organizing teams, tracking players, scheduling matches, and managing tournament operations.
+
+The application features a user-friendly Razor Pages interface, robust data persistence with SQLite/SQL Server, and secure user authentication through ASP.NET Core Identity.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card
+    title="Team Management"
+    icon="users"
+    href="/features/team-management"
+  >
+    Organize teams with technical directors, players, and municipality assignments
+  </Card>
+  <Card
+    title="Player Management"
+    icon="user"
+    href="/features/player-management"
+  >
+    Track player details, positions, and team associations with comprehensive validation
+  </Card>
+  <Card
+    title="Match Scheduling"
+    icon="calendar"
+    href="/features/match-management"
+  >
+    Schedule and manage matches between local and visiting teams
+  </Card>
+  <Card
+    title="User Authentication"
+    icon="lock"
+    href="/features/user-authentication"
+  >
+    Secure access with ASP.NET Core Identity and role-based permissions
+  </Card>
+  <Card
+    title="Docker Deployment"
+    icon="docker"
+    href="/deployment/docker"
+  >
+    Containerized deployment with multi-environment support
+  </Card>
+  <Card
+    title="Entity Framework Core"
+    icon="database"
+    href="/api/data/context"
+  >
+    Robust data layer with migrations and repository pattern
+  </Card>
+</CardGroup>
+
+## Architecture Overview
+
+The application follows a clean architecture with separation of concerns:
+
+- **Torneo.App.Frontend** - ASP.NET Core Razor Pages web application with user authentication
+- **Torneo.App.Dominio** - Domain models representing tournament entities (Teams, Players, Matches)
+- **Torneo.App.Persistencia** - Data access layer with Entity Framework Core and repository pattern
+- **Torneo.App.Consola** - Console application for command-line operations
+
+## Technology Stack
+
+- **.NET 8.0** - Latest long-term support release
+- **ASP.NET Core** - Modern web framework with Razor Pages
+- **Entity Framework Core** - ORM for database operations
+- **ASP.NET Core Identity** - User authentication and authorization
+- **SQLite/SQL Server** - Flexible database support
+- **Docker** - Containerization for consistent deployments
+
+## Quick Links
+
+<CardGroup cols={2}>
+  <Card
+    title="Quickstart Guide"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Get up and running in minutes with our step-by-step guide
+  </Card>
+  <Card
+    title="Installation"
+    icon="download"
+    href="/installation"
+  >
+    Install and configure the application locally or with Docker
+  </Card>
+  <Card
+    title="API Reference"
+    icon="code"
+    href="/api/models/equipo"
+  >
+    Explore the domain models and repository interfaces
+  </Card>
+  <Card
+    title="GitHub Repository"
+    icon="github"
+    href="https://github.com/AlexanderAsprilla98/Tournament-Management-App"
+  >
+    View the source code and contribute to the project
+  </Card>
+</CardGroup>
+
+## Getting Help
+
+This documentation covers all aspects of the Tournament Management App, from installation to deployment. Use the navigation menu to explore:
+
+- **Get Started** - Installation and quickstart guides
+- **Core Features** - Detailed feature documentation
+- **Deployment** - Docker and production deployment guides
+- **Guides** - Step-by-step tutorials for common tasks
+- **API Reference** - Complete technical reference for models and repositories

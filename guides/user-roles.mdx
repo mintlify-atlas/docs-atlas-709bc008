@@ -1,0 +1,361 @@
+---
+title: User Roles and Authentication
+description: Guide to user authentication and access control in the Tournament Management App
+---
+
+This guide explains the authentication system, user registration, and role-based access control in the Tournament Management App.
+
+## Authentication Overview
+
+The Tournament Management App uses ASP.NET Core Identity for authentication and authorization. This provides:
+
+- Secure user registration and login
+- Password-based authentication
+- Email confirmation
+- Account lockout protection
+- Future support for external authentication providers
+
+## User Access Levels
+
+The application has two main access levels:
+
+### Public (Unauthenticated) Users
+
+**Can**:
+- View teams, players, and matches
+- Use search and filter features
+- Access detail pages for all entities
+- Browse all public information
+
+**Cannot**:
+- Create new teams, players, or matches
+- Edit existing records
+- Delete any entities
+
+### Authenticated Users
+
+**Can**:
+- Everything public users can do, plus:
+- Create new teams, players, and matches
+- Edit existing records
+- Delete entities (subject to business rules)
+- Access all management features
+
+<Note>
+  Currently, the application uses a simple authenticated/unauthenticated model. All authenticated users have the same permissions. Role-based access control (admin, manager, viewer) can be added in future versions.
+</Note>
+
+## Creating an Account
+
+<Steps>
+  <Step title="Navigate to Register">
+    Click **Registrarse** (Register) in the navigation menu or on the login page.
+  </Step>
+  
+  <Step title="Fill in registration details">
+    Enter the required information:
+    
+    - **Email**: Your email address (used as username)
+    - **Password**: Choose a secure password
+    - **Confirm Password**: Re-enter your password
+  </Step>
+  
+  <Step title="Submit registration">
+    Click **Registrarse** (Register) to create your account.
+  </Step>
+  
+  <Step title="Confirm your email">
+    Check your email inbox for a confirmation message and follow the link to confirm your account.
+    
+    <Warning>
+      You must confirm your email address before you can log in. This is a security requirement.
+    </Warning>
+  </Step>
+</Steps>
+
+## Password Requirements
+
+For security, passwords must meet the following criteria:
+
+- **Minimum length**: 6 characters
+- **Require digit**: At least one number (0-9)
+- **Require lowercase**: At least one lowercase letter (a-z)
+- **Require uppercase**: At least one uppercase letter (A-Z)
+- **Require non-alphanumeric**: At least one special character (!@#$%^&*, etc.)
+- **Unique characters**: At least 1 unique character
+
+<CodeGroup>
+```text Valid Passwords
+Password1!
+MyP@ssw0rd
+Secure#123
+```
+
+```text Invalid Passwords
+password            (no uppercase, digit, or special char)
+PASSWORD1           (no lowercase or special char)
+Password            (no digit or special char)
+Pass1!              (too short - less than 6 characters)
+```
+</CodeGroup>
+
+<Tip>
+  **Password Best Practices**:
+  - Use a unique password for this application
+  - Consider using a password manager
+  - Mix different character types throughout the password
+  - Avoid common words or personal information
+</Tip>
+
+## Logging In
+
+<Steps>
+  <Step title="Navigate to Login">
+    Click **Iniciar sesión** (Login) in the navigation menu.
+  </Step>
+  
+  <Step title="Enter credentials">
+    Provide your:
+    
+    - **Email**: Your registered email address
+    - **Password**: Your account password
+  </Step>
+  
+  <Step title="Optional: Remember me">
+    Check **Recordarme** (Remember me) to stay logged in on this device.
+    
+    <Warning>
+      Only use "Remember me" on personal devices. Don't use it on shared or public computers.
+    </Warning>
+  </Step>
+  
+  <Step title="Click Login">
+    Click **Iniciar sesión** to access your account.
+  </Step>
+</Steps>
+
+### Login Options
+
+From the login page, you can also:
+
+- **¿Olvidó su contraseña?** (Forgot password): Reset your password
+- **Registrarse como usuario nuevo** (Register as new user): Create an account
+- **Reenviar correo de confirmación** (Resend confirmation email): Get a new confirmation link
+
+## Account Security Features
+
+### Account Lockout
+
+To prevent brute-force attacks, the system includes account lockout:
+
+- **Maximum failed attempts**: 5 failed login attempts
+- **Lockout duration**: 5 minutes
+- **Applies to**: All users, including new accounts
+
+<Warning>
+  If you enter the wrong password 5 times, your account will be locked for 5 minutes. Wait for the lockout period to expire before trying again.
+</Warning>
+
+### Email Confirmation
+
+Email confirmation is required for security:
+
+- Confirms you own the email address
+- Prevents automated account creation
+- Required before you can log in
+- Confirmation links can be resent if needed
+
+<Accordion title="Didn't receive confirmation email?">
+  If you didn't receive the confirmation email:
+  
+  1. Check your spam/junk folder
+  2. Verify you entered the correct email address
+  3. Click "Reenviar correo de confirmación" on the login page
+  4. Wait a few minutes and check again
+  5. Contact support if issues persist
+</Accordion>
+
+## Protected Pages and Features
+
+The following pages and features require authentication:
+
+### Team Management
+- Creating teams: `/Equipos/Create`
+- Editing teams: `/Equipos/Edit`
+- Deleting teams: Delete button on `/Equipos/Index`
+
+### Player Management
+- Creating players: `/Jugadores/Create`
+- Editing players: `/Jugadores/Edit`
+- Deleting players: Delete button on `/Jugadores/Index`
+
+### Match Management
+- Creating matches: `/Partidos/Create`
+- Editing matches: `/Partidos/Edit`
+- Deleting matches: Delete button on `/Partidos/Index`
+
+### Other Protected Areas
+- Creating municipalities: `/Municipios/Create`
+- Creating positions: `/Posiciones/Create`
+- Creating technical directors: `/DTs/Create`
+- All edit and delete operations
+
+<Note>
+  Protected pages are decorated with the `[Authorize]` attribute in the code. Attempting to access these without logging in will redirect you to the login page.
+</Note>
+
+## UI Changes Based on Authentication
+
+The user interface adapts based on your login status:
+
+### When Not Logged In
+- Create buttons are hidden
+- Edit buttons appear disabled (outlined)
+- Delete buttons appear disabled (outlined)
+- You can only view and browse data
+
+### When Logged In
+- Create buttons are visible and active
+- Edit buttons are enabled and clickable
+- Delete buttons are enabled (subject to business rules)
+- Full CRUD (Create, Read, Update, Delete) operations available
+
+## Logging Out
+
+To log out of your account:
+
+1. Click **Cerrar sesión** (Logout) in the navigation menu
+2. Confirm the logout action
+3. You'll be redirected to the home page
+
+<Tip>
+  Always log out when using shared or public computers to protect your account.
+</Tip>
+
+## Future Authentication Features
+
+The application is prepared for future authentication enhancements:
+
+### External Authentication Providers (Planned)
+
+The codebase includes commented-out configuration for:
+
+- **Google** authentication
+- **Facebook** authentication  
+- **Microsoft** account authentication
+
+These features can be enabled in future releases by:
+1. Obtaining API credentials from the providers
+2. Adding credentials to configuration
+3. Uncommenting the code in `Program.cs`
+
+<Accordion title="External authentication code preview">
+  ```csharp
+  // Future configuration in Program.cs:
+  builder.Services.AddAuthentication()
+     .AddGoogle(options =>
+     {
+         options.ClientId = config["Authentication:Google:ClientId"];
+         options.ClientSecret = config["Authentication:Google:ClientSecret"];
+     })
+     .AddFacebook(options =>
+     {
+         options.ClientId = config["Authentication:FB:ClientId"];
+         options.ClientSecret = config["Authentication:FB:ClientSecret"];
+     })
+     .AddMicrosoftAccount(options =>
+     {
+         options.ClientId = config["Authentication:Microsoft:ClientId"];
+         options.ClientSecret = config["Authentication:Microsoft:ClientSecret"];
+     });
+  ```
+  
+  When enabled, you'll be able to log in using your existing Google, Facebook, or Microsoft accounts.
+</Accordion>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Cannot access create/edit features">
+    **Solution**: Log in to your account. These features require authentication.
+  </Accordion>
+  
+  <Accordion title="Account locked after failed login attempts">
+    **Solution**: Wait 5 minutes for the lockout period to expire, then try again. Ensure you're using the correct password.
+  </Accordion>
+  
+  <Accordion title="Cannot log in - email not confirmed">
+    **Solution**: 
+    1. Check your email for the confirmation link
+    2. Click "Reenviar correo de confirmación" to get a new link
+    3. Confirm your email before logging in
+  </Accordion>
+  
+  <Accordion title="Password doesn't meet requirements">
+    **Solution**: Ensure your password has:
+    - At least 6 characters
+    - At least one uppercase letter
+    - At least one lowercase letter
+    - At least one number
+    - At least one special character (!@#$%^&*, etc.)
+  </Accordion>
+  
+  <Accordion title="Forgot password">
+    **Solution**: 
+    1. Click "¿Olvidó su contraseña?" on the login page
+    2. Enter your email address
+    3. Check your email for password reset instructions
+    4. Follow the link to set a new password
+  </Accordion>
+  
+  <Accordion title="Logged out unexpectedly">
+    **Possible causes**:
+    - Session timeout due to inactivity
+    - Browser cookies cleared
+    - Application restarted
+    
+    **Solution**: Simply log in again.
+  </Accordion>
+</AccordionGroup>
+
+## Technical Implementation Details
+
+For developers and administrators:
+
+### Identity Configuration
+
+The application uses ASP.NET Core Identity with:
+
+- **Database**: SQLite (via Entity Framework Core)
+- **Context**: `IdentityDataContext`
+- **User type**: `IdentityUser` (default implementation)
+- **Connection string**: Environment variable `DATABASE_CONNECTION_STRING` or default path
+
+### Data Protection
+
+User data is protected using:
+
+```csharp
+builder.Services.AddDataProtection()
+    .PersistKeysToDbContext<IdentityDataContext>()
+    .SetApplicationName("TorneoApp");
+```
+
+This ensures encryption keys are persisted to the database for consistent encryption across application restarts.
+
+### Middleware Pipeline
+
+The authentication flow uses:
+
+```csharp
+app.UseAuthentication();  // Identifies the user
+app.UseAuthorization();   // Checks permissions
+```
+
+These must be called in this order after routing but before endpoint mapping.
+
+## Related Guides
+
+- [Managing Teams](/guides/managing-teams) - Learn about team management features
+- [Managing Players](/guides/managing-players) - Player management guide
+- [Scheduling Matches](/guides/scheduling-matches) - Match scheduling guide

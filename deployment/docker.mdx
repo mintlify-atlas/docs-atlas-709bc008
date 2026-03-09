@@ -1,0 +1,404 @@
+---
+title: 'Docker Deployment'
+description: 'Deploy the Tournament Management App using Docker and Docker Compose'
+---
+
+## Overview
+
+The Tournament Management App is fully containerized using Docker, enabling consistent deployments across development, staging, and production environments. The application uses a multi-stage Docker build to create optimized production images.
+
+## Prerequisites
+
+<CardGroup cols={2}>
+  <Card title="Docker Engine" icon="docker">
+    Version 20.10 or higher
+  </Card>
+  <Card title="Docker Compose" icon="layer-group">
+    Version 2.0 or higher
+  </Card>
+</CardGroup>
+
+Install Docker Desktop for your operating system:
+- [Docker Desktop for Windows](https://docs.docker.com/desktop/install/windows-install/)
+- [Docker Desktop for Mac](https://docs.docker.com/desktop/install/mac-install/)
+- [Docker Engine for Linux](https://docs.docker.com/engine/install/)
+
+## Quick Start with Docker Compose
+
+The fastest way to deploy is using Docker Compose:
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/AlexanderAsprilla98/Tournament-Management-App.git
+    cd Tournament-Management-App
+    ```
+  </Step>
+
+  <Step title="Build and start the container">
+    <Tabs>
+      <Tab title="Development">
+        ```bash
+        docker-compose up -d
+        ```
+        Starts the application on `http://localhost:5000` with Development environment settings.
+      </Tab>
+      <Tab title="Production">
+        ```bash
+        docker-compose -f docker-compose.prod.yml up -d
+        ```
+        Starts the application on `http://localhost:80` with Production environment settings.
+      </Tab>
+      <Tab title="CI Environment">
+        ```bash
+        docker-compose -f docker-compose.ci.yml up -d
+        ```
+        Optimized for continuous integration pipelines.
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Access the application">
+    - **Development**: Navigate to `http://localhost:5000`
+    - **Production**: Navigate to `http://localhost:80`
+    
+    The database is automatically initialized with the required schema during container startup.
+  </Step>
+
+  <Step title="Verify health">
+    Check the application health endpoint:
+    ```bash
+    curl http://localhost:5000/health
+    ```
+    
+    You should receive a `Healthy` response.
+  </Step>
+</Steps>
+
+## Docker Compose Configuration
+
+### Development Environment
+
+```yaml docker-compose.yml
+services:
+  torneo-app:
+    container_name: torneo-app
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+    ports:
+      - "5000:80"
+    networks:
+      - torneo-network
+
+networks:
+  torneo-network:
+    driver: bridge
+
+volumes:
+  sqldata:
+```
+
+<Note>
+The Development configuration enables detailed error pages, developer exception pages, and hot reload capabilities.
+</Note>
+
+### Production Environment
+
+```yaml docker-compose.prod.yml
+services:
+  torneo-app:
+    container_name: torneo-app
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+    ports:
+      - "80:80"
+    networks:
+      - torneo-network
+
+networks:
+  torneo-network:
+    driver: bridge
+
+volumes:
+  sqldata:
+```
+
+<Warning>
+Production mode disables detailed error messages and enables performance optimizations. Always use HTTPS in production with proper SSL certificates.
+</Warning>
+
+## Dockerfile Structure
+
+The application uses a multi-stage build for optimal image size and security:
+
+### Stage 1: Build
+
+```dockerfile Dockerfile (Build Stage)
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /app
+
+# Install Entity Framework tools
+RUN dotnet tool install --global dotnet-ef --version 8
+
+ENV PATH="${PATH}:/root/.dotnet/tools"
+ENV DATABASE_CONNECTION_STRING="Data Source=/app/Torneo.db"
+
+COPY ["Torneo.App/", "./"]
+
+# Create solution, restore, build, and run migrations
+RUN dotnet new sln -n Torneo.App \
+    && dotnet sln Torneo.App.sln add \
+        Torneo.App.Dominio/Torneo.App.Dominio.csproj \
+        Torneo.App.Persistencia/Torneo.App.Persistencia.csproj \
+        Torneo.App.Consola/Torneo.App.Consola.csproj \
+        Torneo.App.Frontend/Torneo.App.Frontend.csproj \
+    && dotnet restore Torneo.App.sln \
+    && dotnet build Torneo.App.sln -c Release --no-restore \
+    # DataContext migrations
+    && dotnet ef migrations add InitialCreate \
+        --project Torneo.App.Persistencia/Torneo.App.Persistencia.csproj \
+        --startup-project Torneo.App.Frontend/Torneo.App.Frontend.csproj \
+        --context Torneo.App.Persistencia.DataContext \
+        --no-build --configuration Release \
+    && dotnet ef database update \
+        --project Torneo.App.Persistencia/Torneo.App.Persistencia.csproj \
+        --startup-project Torneo.App.Frontend/Torneo.App.Frontend.csproj \
+        --context Torneo.App.Persistencia.DataContext \
+    # IdentityDataContext migrations
+    && dotnet ef migrations add CreateIdentitySchema \
+        --project Torneo.App.Frontend/Torneo.App.Frontend.csproj \
+        --context Torneo.App.Frontend.Areas.Identity.Data.IdentityDataContext \
+        --no-build --configuration Release \
+    && dotnet ef database update \
+        --project Torneo.App.Frontend/Torneo.App.Frontend.csproj \
+        --startup-project Torneo.App.Frontend/Torneo.App.Frontend.csproj \
+        --context Torneo.App.Frontend.Areas.Identity.Data.IdentityDataContext \
+    # Publish and cleanup
+    && dotnet publish Torneo.App.sln -c Release -o /app/publish --no-restore --no-build \
+    && dotnet nuget locals all --clear
+```
+
+The build stage:
+- Uses the full .NET SDK (8.0) for compilation
+- Installs Entity Framework Core tools
+- Creates a solution and adds all projects
+- Restores NuGet dependencies
+- Builds in Release configuration
+- Runs migrations for both database contexts
+- Publishes the optimized application
+- Cleans up unnecessary files to reduce image size
+
+### Stage 2: Runtime
+
+```dockerfile Dockerfile (Runtime Stage)
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
+WORKDIR /app
+
+# Copy published files and database
+COPY --from=build /app/publish .
+COPY --from=build /app/Torneo.db .
+
+# Configure globalization and port
+ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=0
+ENV PORT=80
+EXPOSE 80
+
+ENTRYPOINT ["dotnet", "Torneo.App.Frontend.dll", "--urls", "http://0.0.0.0:80"]
+```
+
+The runtime stage:
+- Uses the lightweight ASP.NET runtime (no SDK)
+- Copies only the published application
+- Includes the pre-initialized SQLite database
+- Exposes port 80 for HTTP traffic
+- Configures the entry point for the web application
+
+## Container Management
+
+### View Running Containers
+
+```bash
+docker ps
+```
+
+Expected output:
+```
+CONTAINER ID   IMAGE                        STATUS         PORTS                    NAMES
+abc123def456   tournament-management-app    Up 2 minutes   0.0.0.0:5000->80/tcp     torneo-app
+```
+
+### View Container Logs
+
+```bash
+docker logs torneo-app
+```
+
+For continuous log streaming:
+```bash
+docker logs -f torneo-app
+```
+
+### Stop the Container
+
+```bash
+docker-compose down
+```
+
+To remove volumes as well:
+```bash
+docker-compose down -v
+```
+
+### Restart the Container
+
+```bash
+docker-compose restart
+```
+
+### Execute Commands Inside Container
+
+```bash
+# Open a shell inside the container
+docker exec -it torneo-app /bin/bash
+
+# Run a specific command
+docker exec torneo-app ls /app
+```
+
+## Building Custom Images
+
+If you need to customize the Docker image:
+
+```bash
+# Build the image
+docker build -t torneo-app:custom .
+
+# Tag for a registry
+docker tag torneo-app:custom myregistry.com/torneo-app:1.0.0
+
+# Push to registry
+docker push myregistry.com/torneo-app:1.0.0
+```
+
+## Environment Variables
+
+You can override environment variables in docker-compose.yml:
+
+```yaml
+services:
+  torneo-app:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      DATABASE_CONNECTION_STRING: "Data Source=/app/Torneo.db"
+      DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "0"
+```
+
+<Note>
+For SQLite databases, the connection string should point to a file path. For SQL Server, use a full connection string with server, database, and credentials.
+</Note>
+
+## Data Persistence
+
+The SQLite database is created inside the container at `/app/Torneo.db`. To persist data across container restarts, you can mount a volume:
+
+```yaml
+services:
+  torneo-app:
+    volumes:
+      - torneo-data:/app
+    
+volumes:
+  torneo-data:
+```
+
+## Cloud Deployment
+
+The application includes a `render.yaml` configuration for deployment to Render.com:
+
+```yaml render.yaml
+services:
+  - type: web
+    name: tournament-management-app
+    env: docker
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+```
+
+<CardGroup cols={3}>
+  <Card title="Render" icon="cloud">
+    One-click deployment from GitHub
+  </Card>
+  <Card title="Azure" icon="microsoft">
+    Azure Container Instances
+  </Card>
+  <Card title="AWS" icon="aws">
+    Amazon ECS or App Runner
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Container fails to start">
+    **Solution**: Check container logs for errors:
+    ```bash
+    docker logs torneo-app
+    ```
+    
+    Common issues:
+    - Port 5000 or 80 already in use
+    - Insufficient memory or disk space
+    - Database migration failures
+  </Accordion>
+
+  <Accordion title="Database not initialized">
+    **Solution**: The Dockerfile runs migrations automatically during build. If the database is missing:
+    ```bash
+    # Rebuild the image
+    docker-compose build --no-cache
+    docker-compose up -d
+    ```
+  </Accordion>
+
+  <Accordion title="Application returns 502/503 errors">
+    **Solution**: Ensure the container is healthy:
+    ```bash
+    curl http://localhost:5000/health
+    ```
+    
+    If unhealthy, check that the database is accessible and properly initialized.
+  </Accordion>
+
+  <Accordion title="Changes to code not reflected">
+    **Solution**: Rebuild the image after code changes:
+    ```bash
+    docker-compose build
+    docker-compose up -d
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Database Setup" icon="database" href="/deployment/database-setup">
+    Learn about database configuration and migrations
+  </Card>
+  <Card title="Configuration" icon="gear" href="/deployment/configuration">
+    Configure environment variables and settings
+  </Card>
+  <Card title="Managing Teams" icon="users" href="/guides/managing-teams">
+    Start managing your tournament teams
+  </Card>
+  <Card title="User Authentication" icon="lock" href="/features/user-authentication">
+    Set up user accounts and permissions
+  </Card>
+</CardGroup>

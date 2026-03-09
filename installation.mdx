@@ -1,0 +1,597 @@
+---
+title: 'Installation'
+description: 'Complete installation guide for the Tournament Management App'
+---
+
+This guide provides detailed instructions for installing and configuring the Tournament Management App for local development and production deployment.
+
+## System Requirements
+
+### For Local Development
+
+- **.NET 8.0 SDK** or higher
+- **SQLite** (included with .NET)
+- **Visual Studio Code** or **Visual Studio 2022** (recommended)
+- **Git** for version control
+
+### For Docker Deployment
+
+- **Docker** 20.10 or higher
+- **Docker Compose** 1.29 or higher
+- Minimum **2GB RAM** available
+- Minimum **1GB disk space**
+
+## Installation Methods
+
+<CardGroup cols={2}>
+  <Card title="Docker Installation" icon="docker">
+    Recommended for quick setup and production deployment
+  </Card>
+  
+  <Card title="Local Development" icon="code">
+    Best for development and debugging
+  </Card>
+</CardGroup>
+
+## Docker Installation
+
+Docker provides the simplest way to run the application with all dependencies included.
+
+<Steps>
+  <Step title="Install Docker">
+    Download and install Docker Desktop for your operating system:
+    
+    - [Docker Desktop for Windows](https://docs.docker.com/desktop/install/windows-install/)
+    - [Docker Desktop for Mac](https://docs.docker.com/desktop/install/mac-install/)
+    - [Docker Engine for Linux](https://docs.docker.com/engine/install/)
+    
+    Verify installation:
+    ```bash
+    docker --version
+    docker-compose --version
+    ```
+  </Step>
+
+  <Step title="Clone the Repository">
+    ```bash
+    git clone https://github.com/AlexanderAsprilla98/TorneoFutbol
+    cd TorneoFutbol
+    ```
+  </Step>
+
+  <Step title="Review Docker Configuration">
+    The `docker-compose.yml` file configures the application:
+    
+    ```yaml docker-compose.yml
+    services:
+      torneo-app:
+        container_name: torneo-app
+        build:
+          context: .
+          dockerfile: ./Dockerfile
+        environment:
+          ASPNETCORE_ENVIRONMENT: Development
+        ports:
+          - "5000:80"
+        networks:
+          - torneo-network
+    
+    networks:
+      torneo-network:
+        driver: bridge
+    ```
+    
+    <Note>
+      The application runs on port 80 inside the container and is mapped to port 5000 on your host machine.
+    </Note>
+  </Step>
+
+  <Step title="Build and Start">
+    ```bash
+    docker-compose up -d
+    ```
+    
+    This command will:
+    - Build the application using the multi-stage Dockerfile
+    - Install .NET EF Core tools
+    - Create the SQLite database at `/app/Torneo.db`
+    - Run database migrations for both main and identity contexts
+    - Publish the application
+    - Start the container in detached mode
+    
+    <Warning>
+      First build may take 5-10 minutes as Docker downloads base images and builds the application.
+    </Warning>
+  </Step>
+
+  <Step title="Verify Installation">
+    Check container status:
+    ```bash
+    docker ps
+    ```
+    
+    Check application logs:
+    ```bash
+    docker logs torneo-app
+    ```
+    
+    Test the application:
+    ```bash
+    curl http://localhost:5000/health
+    ```
+  </Step>
+</Steps>
+
+### Docker Build Process
+
+The `Dockerfile` uses a multi-stage build for optimization:
+
+```dockerfile Dockerfile
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /app
+
+# Install Entity Framework Core tools
+RUN dotnet tool install --global dotnet-ef --version 8
+
+ENV PATH="${PATH}:/root/.dotnet/tools"
+ENV DATABASE_CONNECTION_STRING="Data Source=/app/Torneo.db"
+
+# Copy source code
+COPY ["Torneo.App/", "./"]
+
+# Build solution and run migrations
+RUN dotnet new sln -n Torneo.App \
+    && dotnet sln Torneo.App.sln add \
+        Torneo.App.Dominio/Torneo.App.Dominio.csproj \
+        Torneo.App.Persistencia/Torneo.App.Persistencia.csproj \
+        Torneo.App.Consola/Torneo.App.Consola.csproj \
+        Torneo.App.Frontend/Torneo.App.Frontend.csproj \
+    && dotnet restore Torneo.App.sln \
+    && dotnet build Torneo.App.sln -c Release --no-restore
+
+# Runtime stage
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
+WORKDIR /app
+COPY --from=build /app/publish .
+COPY --from=build /app/Torneo.db .
+
+EXPOSE 80
+ENTRYPOINT ["dotnet", "Torneo.App.Frontend.dll", "--urls", "http://0.0.0.0:80"]
+```
+
+## Local Development Installation
+
+For development, debugging, and contributing to the project:
+
+<Steps>
+  <Step title="Install .NET SDK">
+    Download and install .NET 8.0 SDK:
+    
+    - [Download .NET 8.0](https://dotnet.microsoft.com/download/dotnet/8.0)
+    
+    Verify installation:
+    ```bash
+    dotnet --version
+    ```
+    
+    Expected output: `8.0.x` or higher
+  </Step>
+
+  <Step title="Clone the Repository">
+    ```bash
+    git clone https://github.com/AlexanderAsprilla98/TorneoFutbol
+    cd TorneoFutbol
+    ```
+  </Step>
+
+  <Step title="Restore Dependencies">
+    Navigate to the solution directory and restore NuGet packages:
+    
+    ```bash
+    cd Torneo.App
+    dotnet restore
+    ```
+    
+    This installs all required dependencies including:
+    - ASP.NET Core Identity
+    - Entity Framework Core
+    - SQLite provider
+    - Health checks
+    - Data protection libraries
+  </Step>
+
+  <Step title="Configure Database">
+    Set the database connection string:
+    
+    <CodeGroup>
+    ```bash Linux/Mac
+    export DATABASE_CONNECTION_STRING="Data Source=./Torneo.db"
+    ```
+    
+    ```powershell Windows
+    $env:DATABASE_CONNECTION_STRING="Data Source=./Torneo.db"
+    ```
+    
+    ```cmd Windows CMD
+    set DATABASE_CONNECTION_STRING=Data Source=./Torneo.db
+    ```
+    </CodeGroup>
+    
+    <Note>
+      The database file will be created automatically in the current directory when you first run migrations.
+    </Note>
+  </Step>
+
+  <Step title="Run Database Migrations">
+    Apply migrations to create the database schema:
+    
+    ```bash
+    # Main application database
+    dotnet ef database update \
+      --project Torneo.App.Persistencia/Torneo.App.Persistencia.csproj \
+      --startup-project Torneo.App.Frontend/Torneo.App.Frontend.csproj \
+      --context Torneo.App.Persistencia.DataContext
+    
+    # Identity database
+    dotnet ef database update \
+      --project Torneo.App.Frontend/Torneo.App.Frontend.csproj \
+      --context Torneo.App.Frontend.Areas.Identity.Data.IdentityDataContext
+    ```
+    
+    <Note>
+      If `dotnet ef` is not found, install it globally:
+      ```bash
+      dotnet tool install --global dotnet-ef
+      ```
+    </Note>
+  </Step>
+
+  <Step title="Run the Application">
+    Start the development server:
+    
+    ```bash
+    cd Torneo.App.Frontend
+    dotnet run
+    ```
+    
+    Or with hot reload for development:
+    ```bash
+    dotnet watch run
+    ```
+    
+    The application will start on:
+    - HTTP: `http://localhost:5000`
+    - HTTPS: `https://localhost:5001` (with dev certificate)
+  </Step>
+</Steps>
+
+## Project Structure
+
+The application follows a modular architecture:
+
+```
+Torneo.App/
+├── Torneo.App.Dominio/          # Domain entities and models
+│   ├── Entidades/
+│   │   ├── Equipo.cs            # Team entity
+│   │   ├── Jugador.cs           # Player entity
+│   │   ├── DirectorTecnico.cs   # Technical director entity
+│   │   ├── Municipio.cs         # Municipality entity
+│   │   ├── Partido.cs           # Match entity
+│   │   └── Posicion.cs          # Position entity
+│   └── Torneo.App.Dominio.csproj
+│
+├── Torneo.App.Persistencia/     # Data access layer
+│   ├── DataContext.cs           # Database context
+│   ├── IRepositorio*.cs         # Repository interfaces
+│   ├── Repositorio*.cs          # Repository implementations
+│   ├── Migrations/              # EF Core migrations
+│   └── Torneo.App.Persistencia.csproj
+│
+├── Torneo.App.Frontend/         # Web application
+│   ├── Pages/                   # Razor Pages
+│   │   ├── Equipos/            # Team pages
+│   │   ├── Jugadores/          # Player pages
+│   │   ├── DTs/                # Director pages
+│   │   ├── Municipios/         # Municipality pages
+│   │   ├── Partidos/           # Match pages
+│   │   └── Posiciones/         # Standings pages
+│   ├── wwwroot/                # Static files
+│   ├── Areas/Identity/         # Identity scaffolding
+│   ├── Program.cs              # Application entry point
+│   └── Torneo.App.Frontend.csproj
+│
+└── Torneo.App.Consola/          # Console application
+    └── Torneo.App.Consola.csproj
+```
+
+## Key Dependencies
+
+The application uses the following NuGet packages:
+
+### Frontend Project
+
+```xml Torneo.App.Frontend.csproj
+<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.0" />
+<PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="8.0.0" />
+<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.0" />
+<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.0" />
+<PackageReference Include="AspNetCore.HealthChecks.Sqlite" Version="8.0.0" />
+<PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="8.0.0" />
+```
+
+### Identity Configuration
+
+The application includes ASP.NET Core Identity with the following settings:
+
+```csharp Program.cs
+// Password requirements
+options.Password.RequireDigit = true;
+options.Password.RequireLowercase = true;
+options.Password.RequireNonAlphanumeric = true;
+options.Password.RequireUppercase = true;
+options.Password.RequiredLength = 6;
+options.Password.RequiredUniqueChars = 1;
+
+// Lockout settings
+options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+options.Lockout.MaxFailedAccessAttempts = 5;
+options.Lockout.AllowedForNewUsers = true;
+```
+
+## Configuration Options
+
+### Environment Variables
+
+Configure the application using environment variables:
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `DATABASE_CONNECTION_STRING` | SQLite database path | `Data Source=/app/Torneo.db` | Yes |
+| `ASPNETCORE_ENVIRONMENT` | Environment name | `Production` | No |
+| `PORT` | Application port | `80` | No |
+
+### Application Settings
+
+Edit `appsettings.json` for additional configuration:
+
+```json appsettings.json
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*"
+}
+```
+
+### Development Settings
+
+For development-specific configuration, edit `appsettings.Development.json`:
+
+```json appsettings.Development.json
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Debug",
+      "Microsoft.AspNetCore": "Information"
+    }
+  }
+}
+```
+
+## Database Configuration
+
+The application uses SQLite with Entity Framework Core:
+
+```csharp DataContext.cs
+protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+{
+    if (!optionsBuilder.IsConfigured)
+    {   
+        var connectionString = Environment.GetEnvironmentVariable("DATABASE_CONNECTION_STRING") 
+            ?? "Data Source=/app/Torneo.db";
+        optionsBuilder.UseSqlite(connectionString);
+    }
+}
+```
+
+### Database Entities
+
+The database includes the following tables:
+
+- **Municipios**: Municipalities where teams are located
+- **DirectoresTecnicos**: Technical directors (coaches)
+- **Equipos**: Tournament teams
+- **Jugadores**: Players registered to teams
+- **Partidos**: Matches between teams
+- **Posiciones**: Tournament standings
+
+## Health Checks
+
+The application includes health check endpoints:
+
+```csharp Program.cs
+builder.Services.AddHealthChecks()
+    .AddSqlite(connectionString, 
+        name: "database", 
+        failureStatus: HealthStatus.Unhealthy, 
+        tags: new[] { "db" });
+```
+
+Access health status:
+```bash
+curl http://localhost:5000/health
+```
+
+## IDE Configuration
+
+### Visual Studio Code
+
+Recommended extensions:
+
+- **C# Dev Kit** by Microsoft
+- **C#** by Microsoft
+- **.NET Core Test Explorer**
+- **Docker** by Microsoft
+
+Launch configuration (`.vscode/launch.json`):
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": ".NET Core Launch (web)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "${workspaceFolder}/Torneo.App/Torneo.App.Frontend/bin/Debug/net8.0/Torneo.App.Frontend.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/Torneo.App/Torneo.App.Frontend",
+      "stopAtEntry": false,
+      "serverReadyAction": {
+        "action": "openExternally",
+        "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
+      },
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DATABASE_CONNECTION_STRING": "Data Source=./Torneo.db"
+      }
+    }
+  ]
+}
+```
+
+### Visual Studio 2022
+
+1. Open `Torneo.App.sln`
+2. Set `Torneo.App.Frontend` as startup project
+3. Press F5 to run with debugging
+
+## Production Deployment
+
+### Docker Production Build
+
+For production deployment with Docker:
+
+```bash
+# Build production image
+docker build -t torneo-app:latest .
+
+# Run with production settings
+docker run -d \
+  --name torneo-app \
+  -p 80:80 \
+  -e ASPNETCORE_ENVIRONMENT=Production \
+  -e DATABASE_CONNECTION_STRING="Data Source=/app/Torneo.db" \
+  -v torneo-data:/app \
+  torneo-app:latest
+```
+
+### Manual Deployment
+
+For manual deployment to a server:
+
+```bash
+# Publish the application
+dotnet publish -c Release -o ./publish
+
+# Copy files to server
+scp -r ./publish/* user@server:/var/www/torneo-app/
+
+# On server, start the application
+export DATABASE_CONNECTION_STRING="Data Source=/var/www/torneo-app/Torneo.db"
+dotnet Torneo.App.Frontend.dll
+```
+
+## Troubleshooting
+
+### Common Issues
+
+<AccordionGroup>
+  <Accordion title="Port 5000 already in use">
+    Change the port in `docker-compose.yml` or use `--urls` flag:
+    ```bash
+    dotnet run --urls "http://localhost:8080"
+    ```
+  </Accordion>
+  
+  <Accordion title="Database migration failed">
+    Ensure:
+    - `dotnet-ef` tools are installed
+    - `DATABASE_CONNECTION_STRING` is set correctly
+    - Directory has write permissions
+    
+    Recreate the database:
+    ```bash
+    rm Torneo.db
+    dotnet ef database update --project Torneo.App.Persistencia
+    ```
+  </Accordion>
+  
+  <Accordion title="NuGet package restore failed">
+    Clear NuGet cache and restore:
+    ```bash
+    dotnet nuget locals all --clear
+    dotnet restore
+    ```
+  </Accordion>
+  
+  <Accordion title="Docker build fails">
+    Clear Docker cache and rebuild:
+    ```bash
+    docker-compose down
+    docker system prune -a
+    docker-compose up --build
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Logs and Debugging
+
+**View application logs:**
+```bash
+# Docker
+docker logs -f torneo-app
+
+# Local development (logs to console)
+```
+
+**Enable detailed logging:**
+
+Edit `appsettings.json`:
+```json
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Debug",
+      "Microsoft": "Debug"
+    }
+  }
+}
+```
+
+## Next Steps
+
+After installation:
+
+<CardGroup cols={2}>
+  <Card title="Quickstart Guide" icon="rocket" href="/quickstart">
+    Create your first team and explore features
+  </Card>
+  
+  <Card title="Configuration" icon="gear" href="/configuration">
+    Customize application settings
+  </Card>
+  
+  <Card title="API Reference" icon="code" href="/api-reference">
+    Learn about repository interfaces
+  </Card>
+  
+  <Card title="Contributing" icon="github" href="/contributing">
+    Contribute to the project
+  </Card>
+</CardGroup>

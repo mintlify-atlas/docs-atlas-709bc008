@@ -1,0 +1,217 @@
+---
+title: "DirectorTecnico"
+description: "Technical Director entity representing team coaches in the tournament system"
+---
+
+## Overview
+
+The `DirectorTecnico` entity represents a technical director (coach) in the tournament management system. Each technical director can be assigned to multiple teams and contains personal information including name, identification document, and contact details.
+
+## Properties
+
+<ParamField path="Id" type="int">
+  Unique identifier for the technical director.
+</ParamField>
+
+<ParamField path="Nombre" type="string" required>
+  Full name of the technical director.
+  
+  **Validation Rules:**
+  - Required field (cannot be empty)
+  - Must contain only letters, spaces, and periods
+  - Minimum length: 3 characters
+  - Maximum length: 30 characters
+  - Cannot start or end with whitespace
+  - Regex pattern: `^(?!^\s)(?!.*\s$)[a-zA-ZÀ-ÿ\s\.]+$`
+  
+  **Display Name:** "Nombre del D.T."
+  
+  **Error Messages:**
+  - Pattern mismatch: "Valor Incorrecto. Ingrese solo letras"
+  - Required: "El nombre del D.T es obligatorio."
+  - Max length: "El nombre no puede contener más de 30 caracteres"
+  - Min length: "El nombre no puede contener menos de 3 caracteres"
+</ParamField>
+
+<ParamField path="Documento" type="string" required>
+  Identification document number of the technical director.
+  
+  **Validation Rules:**
+  - Required field (cannot be empty)
+  - Must contain only numbers (no periods or spaces)
+  - Minimum length: 7 characters
+  - Maximum length: 11 characters
+  - Cannot be all zeros
+  - Cannot contain only repeated digits
+  - Regex pattern: `^(?!0+$|(\d)\1+$|(\d)(?:\d\1)+$)\d{7,11}$`
+  
+  **Display Name:** "Documento del D.T. (Sin puntos ni espacios)"
+  
+  **Error Messages:**
+  - Pattern mismatch: "Valor Incorrecto. Ingrese un documento valido(Solo números sin puntos ni espacios. Min.7 Max. 11.No se permite el mismo número repetido unicamente.)"
+  - Required: "El documento del D.T es obligatorio."
+  - Max length: "El documento no puede contener más de 11 caracteres"
+  - Min length: "El documento no puede contener menos de 7 caracteres"
+</ParamField>
+
+<ParamField path="Telefono" type="string" required>
+  Contact phone number of the technical director.
+  
+  **Validation Rules:**
+  - Required field (cannot be empty)
+  - Minimum length: 7 characters
+  - Maximum length: 12 characters
+  - Can contain digits, parentheses, plus signs, spaces, and hyphens
+  - Cannot contain only repeated digits
+  - Regex pattern: `^(?!^(\d)\1+$)[\d()+\s\-]{7,12}$`
+  
+  **Display Name:** "Teléfono del D.T."
+  
+  **Error Messages:**
+  - Pattern mismatch: "Valor Incorrecto. Ingrese un teléfono valido(Minimo 7-Maximo 12 digitos). No se permite repetir el mismo numero"
+  - Required: "El teléfono del D.T es obligatorio."
+  - Max length: "El teléfono no puede contener más de 12 caracteres"
+  - Min length: "El teléfono no puede contener menos de 7 caracteres"
+</ParamField>
+
+<ParamField path="Equipos" type="List<Equipo>">
+  Collection of teams associated with this technical director.
+  
+  **Default Value:** Empty list
+  
+  **Relationship:** One-to-Many (One technical director can coach multiple teams)
+</ParamField>
+
+## Relationships
+
+### Teams (Equipos)
+
+<ResponseField name="Equipos" type="List<Equipo>">
+  A technical director can be associated with multiple teams. This is a one-to-many relationship where the technical director is the parent entity.
+  
+  **Navigation Property:** `Equipos`
+  
+  **Related Entity:** [Equipo](/api/models/equipo)
+</ResponseField>
+
+## Validation Attributes
+
+The `DirectorTecnico` entity uses the following Data Annotations for validation:
+
+- `[Required]` - Ensures all fields (Nombre, Documento, Telefono) are mandatory
+- `[RegularExpression]` - Validates format using complex regex patterns
+- `[MaxLength]` / `[MinLength]` - Enforces character length constraints
+- `[Display]` - Provides user-friendly display names
+- `[DisplayFormat]` - Configures empty string handling
+
+## Code Examples
+
+### Entity Definition
+
+```csharp
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace Torneo.App.Dominio
+{
+    public class DirectorTecnico
+    {
+        public int Id { get; set; }
+
+        [RegularExpression(@"^(?!^\s)(?!.*\s$)[a-zA-ZÀ-ÿ\s\.]+$", 
+            ErrorMessage = "Valor Incorrecto. Ingrese solo letras")]
+        [Display(Name = "Nombre del D.T.")]
+        [Required(AllowEmptyStrings=false, 
+            ErrorMessage = "El nombre del D.T es obligatorio.")]       
+        [DisplayFormat(ConvertEmptyStringToNull=false)]
+        [MaxLength(30, ErrorMessage = "El nombre no puede contener más de 30 caracteres")]
+        [MinLength(3, ErrorMessage = "El nombre no puede contener menos de 3 caracteres")]
+        public string Nombre { get; set; }
+
+        [RegularExpression(@"^(?!0+$|(\d)\1+$|(\d)(?:\d\1)+$)\d{7,11}$", 
+            ErrorMessage = "Valor Incorrecto. Ingrese un documento valido(...)")]
+        [Display(Name = "Documento del D.T. (Sin puntos ni espacios)")]
+        [Required(AllowEmptyStrings=false, 
+            ErrorMessage = "El documento del D.T es obligatorio.")]       
+        [DisplayFormat(ConvertEmptyStringToNull=false)]
+        [MaxLength(11, ErrorMessage = "El documento no puede contener más de 11 caracteres")]
+        [MinLength(7, ErrorMessage = "El documento no puede contener menos de 7 caracteres")]       
+        public string Documento { get; set; }
+
+        [RegularExpression(@"^(?!^(\d)\1+$)[\d()+\s\-]{7,12}$", 
+            ErrorMessage = "Valor Incorrecto. Ingrese un teléfono valido(...)")]
+        [Display(Name = "Teléfono del D.T.")]
+        [Required(AllowEmptyStrings=false, 
+            ErrorMessage = "El teléfono del D.T es obligatorio.")]        
+        [MaxLength(12, ErrorMessage = "El teléfono no puede contener más de 12 caracteres")]
+        [MinLength(7, ErrorMessage = "El teléfono no puede contener menos de 7 caracteres")]    
+        public string Telefono { get; set; }
+        
+        public List<Equipo> Equipos {get; set;} = new List<Equipo>();
+    }
+}
+```
+
+### Creating a Technical Director
+
+```csharp
+var directorTecnico = new DirectorTecnico
+{
+    Nombre = "Carlos Rodríguez",
+    Documento = "12345678",
+    Telefono = "3001234567"
+};
+```
+
+### Valid Examples
+
+```csharp
+// Valid name examples
+Nombre = "Juan Pérez";
+Nombre = "María José González";
+Nombre = "Dr. Fernando López";
+
+// Valid documento examples
+Documento = "1234567";      // 7 digits
+Documento = "12345678901";  // 11 digits
+
+// Valid telefono examples
+Telefono = "3001234567";    // 10 digits
+Telefono = "+57 300 1234567"; // With country code
+Telefono = "(1) 234-5678";  // With area code
+```
+
+### Invalid Examples
+
+<Warning>
+These examples will fail validation:
+</Warning>
+
+```csharp
+// Invalid names
+Nombre = "123";              // Contains only numbers
+Nombre = " Juan";           // Starts with whitespace
+Nombre = "AB";              // Less than 3 characters
+
+// Invalid documents
+Documento = "0000000";       // All zeros
+Documento = "1111111";       // All same digit
+Documento = "123.456.789";  // Contains periods
+
+// Invalid phones
+Telefono = "1111111";        // All same digit
+Telefono = "12345";          // Less than 7 characters
+Telefono = "1234567890123"; // More than 12 characters
+```
+
+## Database Mapping
+
+<Note>
+The `DirectorTecnico` entity is mapped to a database table with the same name. The `Id` property serves as the primary key and is auto-generated.
+</Note>
+
+## Related Entities
+
+- [Equipo](/api/models/equipo) - Teams coached by this technical director
+- [Jugador](/api/models/jugador) - Players indirectly related through teams
+- [Municipio](/api/models/municipio) - Municipalities where teams are located

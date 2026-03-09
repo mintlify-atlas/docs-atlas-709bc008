@@ -1,0 +1,305 @@
+---
+title: "Equipo"
+description: "Team entity representing football teams in the tournament system"
+---
+
+## Overview
+
+The `Equipo` (Team) entity represents a football team in the tournament management system. Each team belongs to a municipality, has a technical director, consists of multiple players, and participates in matches as either the home (local) or visiting team.
+
+## Properties
+
+<ParamField path="Id" type="int">
+  Unique identifier for the team.
+</ParamField>
+
+<ParamField path="Nombre" type="string" required>
+  Name of the team.
+  
+  **Validation Rules:**
+  - Required field (cannot be empty)
+  - Must contain letters, numbers, and spaces
+  - Cannot consist of numbers only
+  - Minimum length: 3 characters
+  - Maximum length: 50 characters
+  - Regex pattern: `^(?![0-9]+$)[a-zA-ZÀ-ÿ\d\s]+$`
+  
+  **Default Value:** Empty string
+  
+  **Display Name:** "Nombre del Equipo"
+  
+  **Error Messages:**
+  - Pattern mismatch: "Valor Incorrecto. Solo se permiten letras"
+  - Required: "El nombre del Equipo es obligatorio."
+  - Max length: "El nombre del equipo no puede contener más de 50 caracteres"
+  - Min length: "El nombre del equipo no puede contener menos de 3 caracteres"
+</ParamField>
+
+<ParamField path="Municipio" type="Municipio?">
+  The municipality where the team is based.
+  
+  **Nullable:** Yes
+  
+  **Relationship:** Many-to-One (Many teams can belong to one municipality)
+  
+  **Related Entity:** [Municipio](/api/models/municipio)
+</ParamField>
+
+<ParamField path="DirectorTecnico" type="DirectorTecnico?">
+  The technical director (coach) of the team.
+  
+  **Nullable:** Yes
+  
+  **Relationship:** Many-to-One (Many teams can have one technical director)
+  
+  **Related Entity:** [DirectorTecnico](/api/models/director-tecnico)
+</ParamField>
+
+<ParamField path="Jugadores" type="List<Jugador>?">
+  Collection of players belonging to this team.
+  
+  **Nullable:** Yes
+  
+  **Default Value:** Empty list
+  
+  **Relationship:** One-to-Many (One team has multiple players)
+  
+  **Related Entity:** [Jugador](/api/models/jugador)
+</ParamField>
+
+<ParamField path="PartidosLocal" type="List<Partido>?">
+  Collection of matches where this team plays as the home team.
+  
+  **Nullable:** Yes
+  
+  **Default Value:** Empty list
+  
+  **Relationship:** One-to-Many (One team plays multiple matches as home team)
+  
+  **Inverse Property:** `Local`
+  
+  **Related Entity:** [Partido](/api/models/partido)
+</ParamField>
+
+<ParamField path="PartidosVisitante" type="List<Partido>?">
+  Collection of matches where this team plays as the visiting team.
+  
+  **Nullable:** Yes
+  
+  **Default Value:** Empty list
+  
+  **Relationship:** One-to-Many (One team plays multiple matches as visiting team)
+  
+  **Inverse Property:** `Visitante`
+  
+  **Related Entity:** [Partido](/api/models/partido)
+</ParamField>
+
+## Relationships
+
+The `Equipo` entity has several important relationships:
+
+### Municipality (Municipio)
+
+<ResponseField name="Municipio" type="Municipio">
+  Each team belongs to one municipality. This is a many-to-one relationship.
+  
+  **Navigation Property:** `Municipio`
+  
+  **Related Entity:** [Municipio](/api/models/municipio)
+</ResponseField>
+
+### Technical Director (DirectorTecnico)
+
+<ResponseField name="DirectorTecnico" type="DirectorTecnico">
+  Each team is coached by one technical director. This is a many-to-one relationship.
+  
+  **Navigation Property:** `DirectorTecnico`
+  
+  **Related Entity:** [DirectorTecnico](/api/models/director-tecnico)
+</ResponseField>
+
+### Players (Jugadores)
+
+<ResponseField name="Jugadores" type="List<Jugador>">
+  A team consists of multiple players. This is a one-to-many relationship.
+  
+  **Navigation Property:** `Jugadores`
+  
+  **Related Entity:** [Jugador](/api/models/jugador)
+</ResponseField>
+
+### Home Matches (PartidosLocal)
+
+<ResponseField name="PartidosLocal" type="List<Partido>">
+  Collection of matches where the team plays as the home team. Uses `[InverseProperty("Local")]` to establish the relationship.
+  
+  **Navigation Property:** `PartidosLocal`
+  
+  **Inverse Property:** `Local` in Partido entity
+  
+  **Related Entity:** [Partido](/api/models/partido)
+</ResponseField>
+
+### Away Matches (PartidosVisitante)
+
+<ResponseField name="PartidosVisitante" type="List<Partido>">
+  Collection of matches where the team plays as the visiting team. Uses `[InverseProperty("Visitante")]` to establish the relationship.
+  
+  **Navigation Property:** `PartidosVisitante`
+  
+  **Inverse Property:** `Visitante` in Partido entity
+  
+  **Related Entity:** [Partido](/api/models/partido)
+</ResponseField>
+
+## Validation Attributes
+
+The `Equipo` entity uses the following Data Annotations:
+
+- `[Required]` - Ensures the team name is mandatory
+- `[RegularExpression]` - Validates name format (letters, numbers, spaces)
+- `[MaxLength]` / `[MinLength]` - Enforces character length constraints
+- `[Display]` - Provides user-friendly display name
+- `[InverseProperty]` - Configures bidirectional navigation for matches
+
+<Note>
+The `[InverseProperty]` attributes are crucial for distinguishing between home and away matches, allowing Entity Framework to properly map the two separate relationships to the Partido entity.
+</Note>
+
+## Code Examples
+
+### Entity Definition
+
+```csharp
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace Torneo.App.Dominio
+{
+    public class Equipo
+    {
+        public int Id { get; set; }        
+        
+        [RegularExpression(@"^(?![0-9]+$)[a-zA-ZÀ-ÿ\d\s]+$", 
+            ErrorMessage = "Valor Incorrecto. Solo se permiten letras")]
+        [Display(Name = "Nombre del Equipo")]
+        [Required(AllowEmptyStrings=false, 
+            ErrorMessage = "El nombre del Equipo es obligatorio.")]             
+        [MaxLength(50, ErrorMessage = "El nombre del equipo no puede contener más de 50 caracteres")]
+        [MinLength(3, ErrorMessage = "El nombre del equipo no puede contener menos de 3 caracteres")] 
+               
+        public string Nombre { get; set; } = new string("");
+        
+        public Municipio? Municipio { get; set; }
+        public DirectorTecnico? DirectorTecnico { get; set; }
+        public List<Jugador>? Jugadores { get; set; } = new List<Jugador>();
+        
+        [InverseProperty("Local")]
+        public List<Partido>? PartidosLocal { get; set; } = new List<Partido>();
+        
+        [InverseProperty("Visitante")]
+        public List<Partido>? PartidosVisitante { get; set; } = new List<Partido>();
+    }
+}
+```
+
+### Creating a Team
+
+```csharp
+var equipo = new Equipo
+{
+    Nombre = "Atlético Nacional",
+    Municipio = municipioMedellin,
+    DirectorTecnico = directorTecnico,
+    Jugadores = new List<Jugador>()
+};
+```
+
+### Creating a Team with Players
+
+```csharp
+var equipo = new Equipo
+{
+    Nombre = "Millonarios FC",
+    Municipio = municipioBogota,
+    DirectorTecnico = coach,
+    Jugadores = new List<Jugador>
+    {
+        new Jugador { Nombre = "Juan Pérez", Numero = 10 },
+        new Jugador { Nombre = "Carlos López", Numero = 7 },
+        new Jugador { Nombre = "Miguel Torres", Numero = 1 }
+    }
+};
+```
+
+### Valid Name Examples
+
+```csharp
+// Valid team names
+Nombre = "Real Madrid";
+Nombre = "Barcelona SC";
+Nombre = "Deportivo Cali 2023";
+Nombre = "América de Cali";
+```
+
+### Invalid Name Examples
+
+<Warning>
+These examples will fail validation:
+</Warning>
+
+```csharp
+// Invalid team names
+Nombre = "123";                  // Only numbers
+Nombre = "FC";                   // Less than 3 characters
+Nombre = "A".PadRight(51, 'B'); // More than 50 characters
+Nombre = "";                     // Empty string (required)
+```
+
+### Accessing Match History
+
+```csharp
+// Get all home matches
+var homeMatches = equipo.PartidosLocal;
+
+// Get all away matches
+var awayMatches = equipo.PartidosVisitante;
+
+// Get total matches played
+var totalMatches = (equipo.PartidosLocal?.Count ?? 0) + 
+                   (equipo.PartidosVisitante?.Count ?? 0);
+```
+
+### Querying Team Players by Position
+
+```csharp
+// Example: Get all forwards on the team
+var forwards = equipo.Jugadores?
+    .Where(j => j.Posicion?.Nombre == "Delantero")
+    .ToList();
+
+// Example: Get player by jersey number
+var player10 = equipo.Jugadores?
+    .FirstOrDefault(j => j.Numero == 10);
+```
+
+## Database Mapping
+
+<Note>
+The `Equipo` entity is mapped to a database table with the same name. The `Id` property serves as the primary key and is auto-generated.
+
+Foreign keys are created for:
+- `Municipio` relationship
+- `DirectorTecnico` relationship
+
+The inverse properties (`PartidosLocal` and `PartidosVisitante`) are configured to prevent ambiguous foreign key references in the Partido entity.
+</Note>
+
+## Related Entities
+
+- [Municipio](/api/models/municipio) - Municipality where the team is based
+- [DirectorTecnico](/api/models/director-tecnico) - Team's technical director
+- [Jugador](/api/models/jugador) - Players on the team
+- [Partido](/api/models/partido) - Matches the team participates in
+- [Posicion](/api/models/posicion) - Player positions (indirectly related)

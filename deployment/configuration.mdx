@@ -1,0 +1,541 @@
+---
+title: 'Configuration'
+description: 'Configure environment variables and application settings for the Tournament Management App'
+---
+
+## Overview
+
+The Tournament Management App uses a combination of environment variables, configuration files, and ASP.NET Core's configuration system. This guide covers all available configuration options.
+
+## Environment Variables
+
+### Required Variables
+
+<ParamField path="DATABASE_CONNECTION_STRING" type="string">
+  Database connection string for SQLite or SQL Server.
+  
+  **Default**: `Data Source=/app/Torneo.db`
+  
+  **Examples**:
+  ```bash
+  # SQLite (file-based)
+  DATABASE_CONNECTION_STRING="Data Source=/app/Torneo.db"
+  
+  # SQL Server
+  DATABASE_CONNECTION_STRING="Server=localhost;Database=TorneoDb;User Id=sa;Password=YourPassword123!;TrustServerCertificate=True;"
+  ```
+</ParamField>
+
+### Optional Variables
+
+<ParamField path="ASPNETCORE_ENVIRONMENT" type="string">
+  Runtime environment setting that controls error handling, logging, and features.
+  
+  **Values**: `Development`, `Staging`, `Production`
+  
+  **Default**: `Production`
+  
+  **Effects**:
+  - `Development`: Detailed error pages, developer exception page, no HSTS
+  - `Production`: Generic error pages, HSTS enabled, optimized performance
+</ParamField>
+
+<ParamField path="DOTNET_SYSTEM_GLOBALIZATION_INVARIANT" type="string">
+  Controls globalization behavior. Must be set to `0` for proper Spanish text handling.
+  
+  **Default**: `0` (in Dockerfile)
+  
+  **Values**: `0` (false), `1` (true)
+</ParamField>
+
+<ParamField path="PORT" type="string">
+  The HTTP port the application listens on.
+  
+  **Default**: `80` (in Docker), `5000` (local development)
+</ParamField>
+
+## Setting Environment Variables
+
+### Docker Compose
+
+Add variables to your `docker-compose.yml`:
+
+```yaml docker-compose.yml
+services:
+  torneo-app:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      DATABASE_CONNECTION_STRING: "Data Source=/app/Torneo.db"
+      DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "0"
+    env_file:
+      - .env  # Load additional variables from file
+```
+
+### .env File
+
+Create a `.env` file in the project root:
+
+```bash .env
+ASPNETCORE_ENVIRONMENT=Development
+DATABASE_CONNECTION_STRING=Data Source=/app/Torneo.db
+ASPNETCORE_URLS=http://+:5000
+```
+
+<Warning>
+Never commit `.env` files containing secrets to version control. Add `.env` to `.gitignore`.
+</Warning>
+
+### Linux/Mac
+
+```bash
+export ASPNETCORE_ENVIRONMENT=Production
+export DATABASE_CONNECTION_STRING="Data Source=/app/Torneo.db"
+
+# Persist across sessions (add to ~/.bashrc or ~/.zshrc)
+echo 'export ASPNETCORE_ENVIRONMENT=Production' >> ~/.bashrc
+```
+
+### Windows PowerShell
+
+```powershell
+$env:ASPNETCORE_ENVIRONMENT="Production"
+$env:DATABASE_CONNECTION_STRING="Data Source=/app/Torneo.db"
+
+# Persist across sessions
+[System.Environment]::SetEnvironmentVariable('ASPNETCORE_ENVIRONMENT', 'Production', 'User')
+```
+
+### Windows CMD
+
+```cmd
+set ASPNETCORE_ENVIRONMENT=Production
+set DATABASE_CONNECTION_STRING=Data Source=/app/Torneo.db
+
+# Persist across sessions
+setx ASPNETCORE_ENVIRONMENT Production
+```
+
+## Application Configuration
+
+### Program.cs Configuration
+
+The application is configured in `Program.cs` (lines 8-101):
+
+```csharp Program.cs
+var builder = WebApplication.CreateBuilder(args);
+
+// Database connection
+var connectionString = Environment.GetEnvironmentVariable("DATABASE_CONNECTION_STRING") 
+    ?? "Data Source=/app/Torneo.db";
+
+builder.Services.AddDbContext<IdentityDataContext>(options => 
+    options.UseSqlite(connectionString));
+
+// Identity configuration
+builder.Services.AddDefaultIdentity<IdentityUser>(options => 
+    options.SignIn.RequireConfirmedAccount = true)
+    .AddEntityFrameworkStores<IdentityDataContext>();
+
+// Register repositories as singletons
+builder.Services.AddSingleton<IRepositorioMunicipio, RepositorioMunicipio>();
+builder.Services.AddSingleton<IRepositorioDT, RepositorioDT>();
+builder.Services.AddSingleton<IRepositorioEquipo, RepositorioEquipo>();
+builder.Services.AddSingleton<IRepositorioPartido, RepositorioPartido>();
+builder.Services.AddSingleton<IRepositorioPosicion, RepositorioPosicion>();
+builder.Services.AddSingleton<IRepositorioJugador, RepositorioJugador>();
+```
+
+### Identity Options
+
+#### Lockout Settings
+
+Configured in `Program.cs` (lines 23-29):
+
+```csharp Program.cs
+builder.Services.Configure<IdentityOptions>(options =>
+{
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+    options.Lockout.MaxFailedAccessAttempts = 5;
+    options.Lockout.AllowedForNewUsers = true;
+});
+```
+
+<Note>
+Users are locked out for 5 minutes after 5 failed login attempts. This helps prevent brute-force attacks.
+</Note>
+
+#### Password Requirements
+
+Configured in `Program.cs` (lines 31-40):
+
+```csharp Program.cs
+builder.Services.Configure<IdentityOptions>(options =>
+{
+    options.Password.RequireDigit = true;              // Must contain numbers
+    options.Password.RequireLowercase = true;          // Must contain lowercase letters
+    options.Password.RequireNonAlphanumeric = true;    // Must contain special characters
+    options.Password.RequireUppercase = true;          // Must contain uppercase letters
+    options.Password.RequiredLength = 6;               // Minimum 6 characters
+    options.Password.RequiredUniqueChars = 1;          // At least 1 unique character
+});
+```
+
+**Example Valid Password**: `SecureP@ss1`
+
+**Customization**: Modify these settings in `Program.cs` to adjust password complexity requirements.
+
+### Data Protection
+
+Configured in `Program.cs` (lines 46-49):
+
+```csharp Program.cs
+builder.Services.AddDataProtection()
+    .PersistKeysToDbContext<IdentityDataContext>()
+    .SetApplicationName("TorneoApp");
+```
+
+<Info>
+Data protection keys are stored in the database to ensure cookie encryption keys persist across container restarts and work in load-balanced scenarios.
+</Info>
+
+**Alternative file-based approach** (commented out in source):
+
+```csharp
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(@"/root/.aspnet/DataProtection-Keys"))
+    .SetApplicationName("TournamentManagementApp");
+```
+
+### Health Checks
+
+Configured in `Program.cs` (lines 42-44):
+
+```csharp Program.cs
+builder.Services.AddHealthChecks()
+    .AddSqlite(connectionString, name: "database", 
+               failureStatus: HealthStatus.Unhealthy, 
+               tags: new[] { "db" });
+```
+
+**Endpoint**: `GET /health`
+
+**Response**:
+```json
+{
+  "status": "Healthy",
+  "results": {
+    "database": {
+      "status": "Healthy"
+    }
+  }
+}
+```
+
+### Middleware Pipeline
+
+Configured in `Program.cs` (lines 82-99):
+
+```csharp Program.cs
+var app = builder.Build();
+
+// Error handling
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler("/Error");
+    app.UseHsts();  // HTTP Strict Transport Security
+}
+
+app.UseHttpsRedirection();  // Redirect HTTP to HTTPS
+app.UseStaticFiles();       // Serve wwwroot files
+app.UseRouting();           // Enable routing
+app.UseAuthentication();    // Enable authentication
+app.UseAuthorization();     // Enable authorization
+app.MapRazorPages();        // Map Razor Pages routes
+app.MapHealthChecks("/health");  // Health check endpoint
+
+app.Run();
+```
+
+## appsettings.json
+
+While the app primarily uses environment variables, you can create `appsettings.json` for additional settings:
+
+```json appsettings.json
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Data Source=/app/Torneo.db"
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning",
+      "Microsoft.EntityFrameworkCore": "Information"
+    }
+  },
+  "AllowedHosts": "*"
+}
+```
+
+### Environment-Specific Settings
+
+Create environment-specific configuration files:
+
+<CodeGroup>
+
+```json appsettings.Development.json
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Debug",
+      "Microsoft.AspNetCore": "Information",
+      "Microsoft.EntityFrameworkCore": "Information"
+    }
+  }
+}
+```
+
+```json appsettings.Production.json
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Warning",
+      "Microsoft.AspNetCore": "Warning",
+      "Microsoft.EntityFrameworkCore": "Error"
+    }
+  },
+  "AllowedHosts": "*.yourdomain.com"
+}
+```
+
+</CodeGroup>
+
+The appropriate file is loaded based on `ASPNETCORE_ENVIRONMENT`.
+
+## User Secrets (Development)
+
+For local development with sensitive data:
+
+<Steps>
+  <Step title="Initialize user secrets">
+    ```bash
+    cd Torneo.App.Frontend
+    dotnet user-secrets init
+    ```
+    
+    This adds a `UserSecretsId` to the `.csproj` file (already present: `Your_UserSecrets_Id`).
+  </Step>
+
+  <Step title="Set secrets">
+    ```bash
+    dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=localhost;Database=TorneoDb;User Id=sa;Password=SecretP@ss123!"
+    dotnet user-secrets set "Authentication:Google:ClientId" "your-client-id"
+    dotnet user-secrets set "Authentication:Google:ClientSecret" "your-client-secret"
+    ```
+  </Step>
+
+  <Step title="List secrets">
+    ```bash
+    dotnet user-secrets list
+    ```
+  </Step>
+
+  <Step title="Access in code">
+    Secrets are automatically loaded via the configuration system:
+    ```csharp
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    var googleClientId = builder.Configuration["Authentication:Google:ClientId"];
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+User secrets are only for development. They're stored unencrypted on your local machine and are NOT deployed.
+</Warning>
+
+## Future Authentication Providers
+
+The code includes placeholders for external authentication (lines 56-77 in `Program.cs`):
+
+```csharp Program.cs (Commented for Future Sprint)
+builder.Services.AddAuthentication()
+   .AddGoogle(options =>
+   {
+       options.ClientId = config["Authentication:Google:ClientId"];
+       options.ClientSecret = config["Authentication:Google:ClientSecret"];
+   })
+   .AddFacebook(options =>
+   {
+       options.ClientId = config["Authentication:FB:ClientId"];
+       options.ClientSecret = config["Authentication:FB:ClientSecret"];
+   })
+   .AddMicrosoftAccount(microsoftOptions =>
+   {
+       microsoftOptions.ClientId = config["Authentication:Microsoft:ClientId"];
+       microsoftOptions.ClientSecret = config["Authentication:Microsoft:ClientSecret"];
+   });
+```
+
+To enable, uncomment this section and configure the respective provider credentials.
+
+## Repository Registration
+
+All repositories are registered as singletons in `Program.cs` (lines 16-21):
+
+```csharp Program.cs
+builder.Services.AddSingleton<IRepositorioMunicipio, RepositorioMunicipio>();
+builder.Services.AddSingleton<IRepositorioDT, RepositorioDT>();
+builder.Services.AddSingleton<IRepositorioEquipo, RepositorioEquipo>();
+builder.Services.AddSingleton<IRepositorioPartido, RepositorioPartido>();
+builder.Services.AddSingleton<IRepositorioPosicion, RepositorioPosicion>();
+builder.Services.AddSingleton<IRepositorioJugador, RepositorioJugador>();
+```
+
+<Info>
+Singleton lifetime means one instance is created and shared across all requests. This is efficient for stateless repositories.
+</Info>
+
+## Production Considerations
+
+### HTTPS Configuration
+
+In production, always use HTTPS. The app includes HSTS (HTTP Strict Transport Security):
+
+```csharp Program.cs
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();  // Enforces HTTPS for 30 days
+}
+```
+
+**SSL Certificate Setup**:
+- Use Let's Encrypt for free certificates
+- Configure reverse proxy (nginx, Caddy) to handle TLS
+- Or use cloud provider SSL termination (AWS ALB, Azure App Gateway)
+
+### Database Configuration
+
+For production with SQL Server:
+
+```bash
+DATABASE_CONNECTION_STRING="Server=prod-db.example.com;Database=TorneoDb;User Id=torneo_user;Password=${DB_PASSWORD};Encrypt=True;TrustServerCertificate=False;"
+```
+
+<Warning>
+Always use encrypted connections (`Encrypt=True`) and avoid `TrustServerCertificate=True` in production.
+</Warning>
+
+### Logging Configuration
+
+Configure structured logging for production:
+
+```json appsettings.Production.json
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning",
+      "Microsoft.EntityFrameworkCore": "Warning"
+    },
+    "Console": {
+      "IncludeScopes": true,
+      "TimestampFormat": "[yyyy-MM-dd HH:mm:ss] "
+    }
+  }
+}
+```
+
+Consider integrating with external logging services (Application Insights, Sentry, Seq).
+
+## Configuration Checklist
+
+<AccordionGroup>
+  <Accordion title="Development Environment">
+    - [ ] Set `ASPNETCORE_ENVIRONMENT=Development`
+    - [ ] Use SQLite: `Data Source=./Torneo.db`
+    - [ ] Enable detailed error pages
+    - [ ] Use `dotnet user-secrets` for sensitive data
+    - [ ] Configure hot reload with `dotnet watch`
+  </Accordion>
+
+  <Accordion title="Staging Environment">
+    - [ ] Set `ASPNETCORE_ENVIRONMENT=Staging`
+    - [ ] Use SQL Server or production-equivalent database
+    - [ ] Configure HTTPS with valid certificate
+    - [ ] Test with production-like data
+    - [ ] Enable health checks monitoring
+  </Accordion>
+
+  <Accordion title="Production Environment">
+    - [ ] Set `ASPNETCORE_ENVIRONMENT=Production`
+    - [ ] Use SQL Server with encrypted connection
+    - [ ] Configure HTTPS with valid SSL certificate
+    - [ ] Set strong password requirements
+    - [ ] Enable HSTS
+    - [ ] Configure structured logging
+    - [ ] Set up health check monitoring
+    - [ ] Configure backup strategy
+    - [ ] Use environment variables for all secrets
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Configuration not loading">
+    **Solution**: Check the priority order:
+    1. Environment variables (highest priority)
+    2. User secrets (development only)
+    3. appsettings.{Environment}.json
+    4. appsettings.json
+    5. Default values in code
+    
+    Use `builder.Configuration.GetDebugView()` to inspect loaded configuration.
+  </Accordion>
+
+  <Accordion title="Database connection fails">
+    **Solution**: Verify connection string format:
+    ```bash
+    # Print current connection string
+    echo $DATABASE_CONNECTION_STRING
+    
+    # Test SQLite path
+    ls -l /app/Torneo.db
+    
+    # Test SQL Server connectivity
+    telnet prod-db.example.com 1433
+    ```
+  </Accordion>
+
+  <Accordion title="Identity configuration not applied">
+    **Solution**: Ensure configuration is set BEFORE calling `AddDefaultIdentity`:
+    ```csharp
+    builder.Services.Configure<IdentityOptions>(options => { ... });
+    builder.Services.AddDefaultIdentity<IdentityUser>(...);  // After Configure
+    ```
+  </Accordion>
+
+  <Accordion title="User secrets not working">
+    **Solution**: 
+    1. Verify `UserSecretsId` exists in `.csproj`
+    2. Ensure you're in Development environment
+    3. Secrets location: `~/.microsoft/usersecrets/{UserSecretsId}/secrets.json`
+    4. Use `dotnet user-secrets list` to verify
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Database Setup" icon="database" href="/deployment/database-setup">
+    Configure databases and run migrations
+  </Card>
+  <Card title="Docker Deployment" icon="docker" href="/deployment/docker">
+    Deploy using Docker containers
+  </Card>
+  <Card title="User Authentication" icon="lock" href="/features/user-authentication">
+    Learn about authentication and authorization
+  </Card>
+  <Card title="Health Checks" icon="heart-pulse" href="/api/data/context">
+    Monitor application health
+  </Card>
+</CardGroup>

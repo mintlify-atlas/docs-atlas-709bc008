@@ -1,0 +1,635 @@
+---
+title: 'Posicion Repository'
+description: 'Repository for managing player position (Posicion) entities'
+---
+
+## Overview
+
+The `IRepositorioPosicion` interface and `RepositorioPosicion` implementation provide data access operations for managing player positions (e.g., Delantero, Defensa, Mediocampista, Portero). Positions are associated with players (Jugadores) in the system.
+
+## Interface Definition
+
+```csharp IRepositorioPosicion.cs
+using Torneo.App.Dominio;
+
+namespace Torneo.App.Persistencia
+{
+    public interface IRepositorioPosicion
+    {
+        public Posicion AddPosicion(Posicion posicion);
+        public IEnumerable<Posicion> GetAllPosiciones();
+        public Posicion GetPosicion(int idPosicion);
+        public Posicion UpdatePosicion(Posicion posicion);
+        public Posicion DeletePosicion(int idPosicion);
+        public bool validateDuplicates(Posicion nombrePosicion);
+    }
+}
+```
+
+## Implementation
+
+```csharp RepositorioPosicion.cs
+using Microsoft.EntityFrameworkCore;
+using Torneo.App.Dominio;
+
+namespace Torneo.App.Persistencia
+{
+    public class RepositorioPosicion : IRepositorioPosicion
+    {
+        private DataContext _dataContext = new DataContext();
+        
+        // Implementation methods...
+    }
+}
+```
+
+## Methods Reference
+
+### AddPosicion
+
+Adds a new position to the database.
+
+<ParamField path="posicion" type="Posicion" required>
+  The Posicion entity to add
+</ParamField>
+
+<ResponseField name="return" type="Posicion">
+  The inserted Posicion entity with its generated ID
+</ResponseField>
+
+```csharp Implementation (Lines 8-13)
+public Posicion AddPosicion(Posicion posicion)
+{
+    var posicionInsertada = _dataContext.Posiciones.Add(posicion);
+    _dataContext.SaveChanges();
+    return posicionInsertada.Entity;
+}
+```
+
+**Usage Example:**
+
+```csharp
+var nuevaPosicion = new Posicion
+{
+    Nombre = "Delantero"
+};
+
+var posicionCreada = repositorioPosicion.AddPosicion(nuevaPosicion);
+Console.WriteLine($"Posición creada: {posicionCreada.Nombre} (ID: {posicionCreada.Id})");
+```
+
+---
+
+### GetAllPosiciones
+
+Retrieves all positions with their associated players.
+
+<ResponseField name="return" type="IEnumerable<Posicion>">
+  Collection of all Posicion entities with eagerly loaded Jugadores
+</ResponseField>
+
+<ResponseField name="exception" type="Exception">
+  Throws exception with message "Posiciones not found" if the result is null
+</ResponseField>
+
+```csharp Implementation (Lines 14-26)
+public IEnumerable<Posicion> GetAllPosiciones()
+{
+    var posiciones = _dataContext.Posiciones
+                        .Include(p => p.Jugadores)
+                        .AsNoTracking()
+                        .ToList();
+    
+    return posiciones ?? throw new Exception("Posiciones not found");
+}
+```
+
+**Key Features:**
+- Uses `.Include(p => p.Jugadores)` to eagerly load all players in each position
+- Uses `.AsNoTracking()` for improved read performance
+- Throws exception if no positions exist
+
+**Usage Example:**
+
+```csharp
+try
+{
+    var todasPosiciones = repositorioPosicion.GetAllPosiciones();
+    
+    foreach (var posicion in todasPosiciones)
+    {
+        Console.WriteLine($"Posición: {posicion.Nombre}");
+        Console.WriteLine($"  Jugadores: {posicion.Jugadores.Count()}");
+        
+        foreach (var jugador in posicion.Jugadores)
+        {
+            Console.WriteLine($"    - {jugador.Nombre} (#{jugador.Numero})");
+        }
+    }
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Error: {ex.Message}");
+}
+```
+
+---
+
+### GetPosicion
+
+Retrieves a specific position by ID.
+
+<ParamField path="idPosicion" type="int" required>
+  The ID of the position to retrieve
+</ParamField>
+
+<ResponseField name="return" type="Posicion">
+  The Posicion entity
+</ResponseField>
+
+<ResponseField name="exception" type="Exception">
+  Throws exception with message "Posicion not found" if the ID doesn't exist
+</ResponseField>
+
+```csharp Implementation (Lines 27-31)
+public Posicion GetPosicion(int idPosicion)
+{
+    var posicionEncontrado = _dataContext.Posiciones.Find(idPosicion);
+    return posicionEncontrado ?? throw new Exception("Posicion not found");
+}
+```
+
+**Usage Example:**
+
+```csharp
+try
+{
+    var posicion = repositorioPosicion.GetPosicion(3);
+    Console.WriteLine($"Posición encontrada: {posicion.Nombre}");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Error: {ex.Message}");
+}
+```
+
+---
+
+### UpdatePosicion
+
+Updates an existing position's information.
+
+<ParamField path="posicion" type="Posicion" required>
+  The Posicion entity with updated values (must include valid Id)
+</ParamField>
+
+<ResponseField name="return" type="Posicion">
+  The updated Posicion entity
+</ResponseField>
+
+<ResponseField name="exception" type="Exception">
+  Throws exception with message "Posicion not found" if the ID doesn't exist
+</ResponseField>
+
+```csharp Implementation (Lines 33-40)
+public Posicion UpdatePosicion(Posicion posicion)
+{
+    var posicionEncontrada = GetPosicion(posicion.Id);
+    posicionEncontrada.Nombre = posicion.Nombre;
+    _dataContext.SaveChanges();
+    
+    return posicionEncontrada ?? throw new Exception("Posicion not found");
+}
+```
+
+**Updated Properties:**
+- `Nombre` - Position name
+
+**Usage Example:**
+
+```csharp
+try
+{
+    var posicion = repositorioPosicion.GetPosicion(3);
+    posicion.Nombre = "Delantero Centro";
+    
+    var posicionActualizada = repositorioPosicion.UpdatePosicion(posicion);
+    Console.WriteLine($"Posición actualizada: {posicionActualizada.Nombre}");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Error: {ex.Message}");
+}
+```
+
+---
+
+### DeletePosicion
+
+Deletes a position from the database.
+
+<ParamField path="idPosicion" type="int" required>
+  The ID of the position to delete
+</ParamField>
+
+<ResponseField name="return" type="Posicion">
+  The deleted Posicion entity
+</ResponseField>
+
+<ResponseField name="exception" type="Exception">
+  Throws exception with message "Posicion not found" if the ID doesn't exist
+</ResponseField>
+
+```csharp Implementation (Lines 42-57)
+public Posicion DeletePosicion(int idPosicion)
+{
+    var posicionEncontrada = GetPosicion(idPosicion);
+    if (posicionEncontrada != null)
+    {
+        _dataContext.Posiciones.Remove(posicionEncontrada);
+        _dataContext.SaveChanges();
+    }
+    else
+    {
+        Console.WriteLine("No se encontró la posicion");
+    }
+    return posicionEncontrada ?? throw new Exception("Posicion not found");
+}
+```
+
+<Warning>
+Deleting a position will fail if it has associated players due to foreign key constraints configured with `DeleteBehavior.Restrict`. Remove all players from the position before deleting, or reassign them to different positions.
+</Warning>
+
+**Usage Example:**
+
+```csharp
+try
+{
+    var posicionEliminada = repositorioPosicion.DeletePosicion(3);
+    Console.WriteLine($"Posición eliminada: {posicionEliminada.Nombre}");
+}
+catch (DbUpdateException)
+{
+    Console.WriteLine("No se puede eliminar: la posición tiene jugadores asociados");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Error: {ex.Message}");
+}
+```
+
+---
+
+### validateDuplicates
+
+Validates whether a position name already exists in the database.
+
+<ParamField path="posicionIngresada" type="Posicion" required>
+  The Posicion entity to validate
+</ParamField>
+
+<ResponseField name="return" type="bool">
+  `true` if a duplicate position name exists (different ID with same name), `false` otherwise
+</ResponseField>
+
+```csharp Implementation (Lines 59-84)
+public bool validateDuplicates(Posicion posicionIngresada)
+{
+    try
+    {
+        IEnumerable<Posicion> allPosiciones = GetAllPosiciones();
+        bool duplicado = false;
+        
+        foreach(Posicion posicion in allPosiciones)
+        {
+            if(posicionIngresada.Id != posicion.Id)
+            {
+                if(posicion.Nombre.ToLower() == posicionIngresada.Nombre.ToLower().Trim())
+                {
+                    duplicado = true;
+                    break;
+                }
+            }
+        }
+        
+        Console.WriteLine("Posicion duplicada al Crear/Editar " + posicionIngresada.Nombre.ToString() + " - " + duplicado);
+        return duplicado;
+    }
+    catch(Exception e)
+    {
+        Console.WriteLine("Error Validacion " + e.Message);
+        return false;
+    }
+}
+```
+
+**Validation Logic:**
+1. Case-insensitive comparison using `.ToLower()`
+2. Trims whitespace from input
+3. Excludes current position when updating (checks `posicionIngresada.Id != posicion.Id`)
+4. Returns `false` on any exception
+
+**Usage Example:**
+
+```csharp
+var nuevaPosicion = new Posicion
+{
+    Nombre = "Delantero"
+};
+
+if (repositorioPosicion.validateDuplicates(nuevaPosicion))
+{
+    Console.WriteLine("Error: Ya existe una posición con este nombre");
+}
+else
+{
+    repositorioPosicion.AddPosicion(nuevaPosicion);
+    Console.WriteLine("Posición creada exitosamente");
+}
+```
+
+## Dependency Injection
+
+Register the repository in `Program.cs`:
+
+```csharp Program.cs (Line 20)
+builder.Services.AddSingleton<IRepositorioPosicion, RepositorioPosicion>();
+```
+
+Inject into controllers:
+
+```csharp
+public class PosicionController : Controller
+{
+    private readonly IRepositorioPosicion _repositorioPosicion;
+    
+    public PosicionController(IRepositorioPosicion repositorioPosicion)
+    {
+        _repositorioPosicion = repositorioPosicion;
+    }
+}
+```
+
+## Common Workflows
+
+<AccordionGroup>
+  <Accordion title="Setting Up Standard Positions">
+    ```csharp
+    // Create standard football positions
+    string[] posicionesEstandar = { "Portero", "Defensa", "Mediocampista", "Delantero" };
+    
+    foreach (var nombrePosicion in posicionesEstandar)
+    {
+        var posicion = new Posicion { Nombre = nombrePosicion };
+        
+        if (!repositorioPosicion.validateDuplicates(posicion))
+        {
+            try
+            {
+                var resultado = repositorioPosicion.AddPosicion(posicion);
+                Console.WriteLine($"Posición creada: {resultado.Nombre}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error creando {nombrePosicion}: {ex.Message}");
+            }
+        }
+        else
+        {
+            Console.WriteLine($"Posición ya existe: {nombrePosicion}");
+        }
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Listing Positions with Player Counts">
+    ```csharp
+    try
+    {
+        var todasPosiciones = repositorioPosicion.GetAllPosiciones();
+        
+        Console.WriteLine("Posiciones y cantidad de jugadores:");
+        Console.WriteLine("===================================\n");
+        
+        foreach (var posicion in todasPosiciones.OrderBy(p => p.Nombre))
+        {
+            Console.WriteLine($"{posicion.Nombre}: {posicion.Jugadores.Count()} jugadores");
+        }
+        
+        // Summary
+        var totalJugadores = todasPosiciones.Sum(p => p.Jugadores.Count());
+        Console.WriteLine($"\nTotal jugadores: {totalJugadores}");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error: {ex.Message}");
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Finding Positions Without Players">
+    ```csharp
+    try
+    {
+        var todasPosiciones = repositorioPosicion.GetAllPosiciones();
+        
+        var posicionesSinJugadores = todasPosiciones
+            .Where(p => !p.Jugadores.Any())
+            .OrderBy(p => p.Nombre)
+            .ToList();
+        
+        if (posicionesSinJugadores.Any())
+        {
+            Console.WriteLine("Posiciones sin jugadores asignados:");
+            foreach (var posicion in posicionesSinJugadores)
+            {
+                Console.WriteLine($"  - {posicion.Nombre} (ID: {posicion.Id})");
+            }
+        }
+        else
+        {
+            Console.WriteLine("Todas las posiciones tienen al menos un jugador asignado");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error: {ex.Message}");
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Renaming a Position">
+    ```csharp
+    try
+    {
+        // Get existing position
+        var posicion = repositorioPosicion.GetPosicion(3);
+        Console.WriteLine($"Posición actual: {posicion.Nombre}");
+        
+        // Rename
+        posicion.Nombre = "Centrocampista"; // Rename Mediocampista
+        
+        // Validate new name
+        if (!repositorioPosicion.validateDuplicates(posicion))
+        {
+            var posicionActualizada = repositorioPosicion.UpdatePosicion(posicion);
+            Console.WriteLine($"Posición renombrada a: {posicionActualizada.Nombre}");
+        }
+        else
+        {
+            Console.WriteLine("Ya existe una posición con ese nombre");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error: {ex.Message}");
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Related Entities
+
+<CardGroup cols={2}>
+  <Card title="Posicion Entity" icon="map-pin" href="/api/entities/posicion">
+    Domain model for positions
+  </Card>
+  <Card title="Jugador Repository" icon="running" href="/api/repositories/jugador">
+    Players assigned to positions
+  </Card>
+</CardGroup>
+
+## Standard Football Positions
+
+<CardGroup cols={4}>
+  <Card title="Portero" icon="hands">
+    Goalkeeper position
+  </Card>
+  <Card title="Defensa" icon="shield">
+    Defender position
+  </Card>
+  <Card title="Mediocampista" icon="person-running">
+    Midfielder position
+  </Card>
+  <Card title="Delantero" icon="futbol">
+    Forward/Striker position
+  </Card>
+</CardGroup>
+
+## Error Handling
+
+<Warning>
+Multiple methods throw exceptions when entities are not found:
+- `GetAllPosiciones` - throws if no positions exist
+- `GetPosicion` - throws if position not found
+- `UpdatePosicion` - throws if position not found (via GetPosicion)
+- `DeletePosicion` - throws if position not found (via GetPosicion)
+
+Always use try-catch blocks when calling these methods.
+</Warning>
+
+## Foreign Key Constraints
+
+<Note>
+**Cascade Delete Restriction:**
+
+The DataContext configures all foreign keys with `DeleteBehavior.Restrict`. This means:
+
+- You cannot delete a position that has associated players
+- You must first remove or reassign all players before deleting the position
+- This prevents accidental data loss and maintains referential integrity
+
+```csharp DataContext.cs (Lines 37-40)
+foreach (var relationship in modelBuilder.Model.GetEntityTypes()
+    .SelectMany(e => e.GetForeignKeys()))
+{
+    relationship.DeleteBehavior = DeleteBehavior.Restrict;
+}
+```
+</Note>
+
+## Performance Considerations
+
+<Note>
+**Optimization Tips:**
+- `GetAllPosiciones()` uses `.AsNoTracking()` for improved read performance
+- The `.Include(p => p.Jugadores)` eagerly loads all players - omit if not needed
+- `validateDuplicates()` calls `GetAllPosiciones()`, which may be inefficient for large datasets
+- Consider implementing indexed queries for duplicate validation in production
+</Note>
+
+## Business Rules
+
+<AccordionGroup>
+  <Accordion title="Unique Position Names">
+    Position names must be unique (case-insensitive). The `validateDuplicates` method enforces this rule before creating or updating positions.
+  </Accordion>
+  
+  <Accordion title="Referential Integrity">
+    Positions cannot be deleted if they have associated players. This ensures data consistency and prevents orphaned player records.
+  </Accordion>
+  
+  <Accordion title="Name Trimming">
+    Position names are trimmed during validation to prevent duplicates caused by leading/trailing whitespace.
+  </Accordion>
+  
+  <Accordion title="Standard Positions">
+    While not enforced at the database level, applications typically use standard football positions:
+    - Portero (Goalkeeper)
+    - Defensa (Defender)
+    - Mediocampista/Centrocampista (Midfielder)
+    - Delantero (Forward/Striker)
+  </Accordion>
+</AccordionGroup>
+
+## Usage Statistics
+
+<CodeGroup>
+```csharp Get Position Distribution
+try
+{
+    var todasPosiciones = repositorioPosicion.GetAllPosiciones();
+    var totalJugadores = todasPosiciones.Sum(p => p.Jugadores.Count());
+    
+    Console.WriteLine("Distribución de jugadores por posición:\n");
+    
+    foreach (var posicion in todasPosiciones.OrderByDescending(p => p.Jugadores.Count()))
+    {
+        var porcentaje = totalJugadores > 0 
+            ? (posicion.Jugadores.Count() * 100.0 / totalJugadores) 
+            : 0;
+        
+        Console.WriteLine($"{posicion.Nombre}:");
+        Console.WriteLine($"  Jugadores: {posicion.Jugadores.Count()}");
+        Console.WriteLine($"  Porcentaje: {porcentaje:F1}%");
+    }
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Error: {ex.Message}");
+}
+```
+
+```csharp Find Most/Least Popular Position
+try
+{
+    var todasPosiciones = repositorioPosicion.GetAllPosiciones();
+    
+    var masPopular = todasPosiciones
+        .OrderByDescending(p => p.Jugadores.Count())
+        .FirstOrDefault();
+    
+    var menosPopular = todasPosiciones
+        .OrderBy(p => p.Jugadores.Count())
+        .FirstOrDefault();
+    
+    Console.WriteLine($"Posición más popular: {masPopular?.Nombre} ({masPopular?.Jugadores.Count()} jugadores)");
+    Console.WriteLine($"Posición menos popular: {menosPopular?.Nombre} ({menosPopular?.Jugadores.Count()} jugadores)");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Error: {ex.Message}");
+}
+```
+</CodeGroup>

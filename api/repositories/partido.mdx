@@ -1,0 +1,619 @@
+---
+title: 'Partido Repository'
+description: 'Repository for managing match (Partido) entities with home and away team associations'
+---
+
+## Overview
+
+The `IRepositorioPartido` interface and `RepositorioPartido` implementation provide data access operations for managing matches (partidos). Each match involves two teams: a home team (Local) and a visiting team (Visitante).
+
+## Interface Definition
+
+```csharp IRepositorioPartido.cs
+using Torneo.App.Dominio;
+
+namespace Torneo.App.Persistencia
+{
+    public interface IRepositorioPartido
+    {
+        public Partido AddPartido(Partido partido, int idEquipoLocal, int idEquipoVisitante);
+        public IEnumerable<Partido> GetAllPartidos();
+        public Partido GetPartido(int idPartido);
+        public Partido UpdatePartido(Partido partido, int idEquipoLocal, int idEquipoVisitante);
+        public Partido DeletePartidos(int idPartido);
+        public bool validateDuplicates(Partido partido, int idEquipoLocal, int idEquipoVisitante);
+    }
+}
+```
+
+## Implementation
+
+```csharp RepositorioPartido.cs
+using Microsoft.EntityFrameworkCore;
+using Torneo.App.Dominio;
+
+namespace Torneo.App.Persistencia
+{
+    public class RepositorioPartido : IRepositorioPartido
+    {
+        private DataContext _dataContext = new DataContext();
+        
+        // Implementation methods...
+    }
+}
+```
+
+## Methods Reference
+
+### AddPartido
+
+Adds a new match to the database with associations to home and visiting teams.
+
+<ParamField path="partido" type="Partido" required>
+  The Partido entity to add
+</ParamField>
+
+<ParamField path="idEquipoLocal" type="int" required>
+  The ID of the home team
+</ParamField>
+
+<ParamField path="idEquipoVisitante" type="int" required>
+  The ID of the visiting team
+</ParamField>
+
+<ResponseField name="return" type="Partido">
+  The inserted Partido entity with its generated ID and populated team relationships
+</ResponseField>
+
+<ResponseField name="exception" type="Exception">
+  Throws exception with message "Partido not found" if the insert fails
+</ResponseField>
+
+```csharp Implementation (Lines 8-17)
+public Partido AddPartido(Partido partido, int idEquipoLocal, int idEquipoVisitante)
+{
+    var equipoLocalEncontrado = _dataContext.Equipos.Find(idEquipoLocal);
+    var equipoVisitanteEncontrado = _dataContext.Equipos.Find(idEquipoVisitante);
+    partido.Local = equipoLocalEncontrado ?? null;
+    partido.Visitante = equipoVisitanteEncontrado ?? null;
+    var partidoInsertado = _dataContext.Partidos.Add(partido);
+    _dataContext.SaveChanges();
+    return partidoInsertado.Entity ?? throw new Exception("Partido not found");
+}
+```
+
+**Key Features:**
+- Validates both teams exist before association
+- Sets team relationships to `null` if teams don't exist
+- Throws exception if insert fails
+
+**Usage Example:**
+
+```csharp
+var nuevoPartido = new Partido
+{
+    FechaHora = new DateTime(2024, 6, 15, 18, 0, 0),
+    MarcadorLocal = 0,
+    MarcadorVisitante = 0
+};
+
+try
+{
+    var partidoCreado = repositorioPartido.AddPartido(
+        nuevoPartido,
+        idEquipoLocal: 5,
+        idEquipoVisitante: 8
+    );
+    
+    Console.WriteLine($"Partido creado: {partidoCreado.Local?.Nombre} vs {partidoCreado.Visitante?.Nombre}");
+    Console.WriteLine($"Fecha: {partidoCreado.FechaHora}");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Error: {ex.Message}");
+}
+```
+
+---
+
+### GetAllPartidos
+
+Retrieves all matches with home and visiting team relationships.
+
+<ResponseField name="return" type="IEnumerable<Partido>">
+  Collection of all Partido entities with eagerly loaded Local and Visitante teams
+</ResponseField>
+
+```csharp Implementation (Lines 18-30)
+public IEnumerable<Partido> GetAllPartidos()
+{
+    var partidos = _dataContext.Partidos
+                    .Include(p => p.Local)
+                    .Include(p => p.Visitante)
+                    .AsNoTracking()
+                    .ToList();
+    
+    return partidos;
+}
+```
+
+**Included Relationships:**
+- `Local` - The home team
+- `Visitante` - The visiting team
+
+**Usage Example:**
+
+```csharp
+var todosPartidos = repositorioPartido.GetAllPartidos();
+
+foreach (var partido in todosPartidos.OrderBy(p => p.FechaHora))
+{
+    Console.WriteLine($"{partido.FechaHora:yyyy-MM-dd HH:mm}");
+    Console.WriteLine($"  {partido.Local?.Nombre} {partido.MarcadorLocal} - {partido.MarcadorVisitante} {partido.Visitante?.Nombre}");
+}
+```
+
+---
+
+### GetPartido
+
+Retrieves a specific match by ID with team relationships.
+
+<ParamField path="idPartido" type="int" required>
+  The ID of the match to retrieve
+</ParamField>
+
+<ResponseField name="return" type="Partido">
+  The Partido entity with Local and Visitante teams loaded
+</ResponseField>
+
+<ResponseField name="exception" type="Exception">
+  Throws exception with message "Partido not found" if the ID doesn't exist
+</ResponseField>
+
+```csharp Implementation (Lines 31-39)
+public Partido GetPartido(int idPartido)
+{
+    var partido = _dataContext.Partidos
+                    .Include(p => p.Local)
+                    .Include(p => p.Visitante)
+                    .AsNoTracking()
+                    .FirstOrDefault(p => p.Id == idPartido);
+    return partido ?? throw new Exception("Partido not found");
+}
+```
+
+**Usage Example:**
+
+```csharp
+try
+{
+    var partido = repositorioPartido.GetPartido(10);
+    
+    Console.WriteLine($"Partido #{partido.Id}");
+    Console.WriteLine($"Fecha: {partido.FechaHora:yyyy-MM-dd HH:mm}");
+    Console.WriteLine($"Local: {partido.Local?.Nombre} ({partido.MarcadorLocal})");
+    Console.WriteLine($"Visitante: {partido.Visitante?.Nombre} ({partido.MarcadorVisitante})");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Error: {ex.Message}");
+}
+```
+
+---
+
+### UpdatePartido
+
+Updates an existing match's information and team associations.
+
+<ParamField path="partido" type="Partido" required>
+  The Partido entity with updated values (must include valid Id)
+</ParamField>
+
+<ParamField path="idEquipoLocal" type="int" required>
+  The ID of the home team (new or existing)
+</ParamField>
+
+<ParamField path="idEquipoVisitante" type="int" required>
+  The ID of the visiting team (new or existing)
+</ParamField>
+
+<ResponseField name="return" type="Partido">
+  The updated Partido entity with current relationships
+</ResponseField>
+
+<ResponseField name="exception" type="Exception">
+  Throws exception with message "Partido not found" if the ID doesn't exist
+</ResponseField>
+
+```csharp Implementation (Lines 40-62)
+public Partido UpdatePartido(Partido partido, int idEquipoLocal, int idEquipoVisitante)
+{
+    var partidoEncontrado = _dataContext.Partidos.Find(partido.Id);
+    if (partidoEncontrado != null)
+    {
+        var equipoLocalEncontrado = _dataContext.Equipos.Find(idEquipoLocal);
+        var equipoVisitanteEncontrado = _dataContext.Equipos.Find(idEquipoVisitante);
+        partidoEncontrado.Local = equipoLocalEncontrado;
+        partidoEncontrado.Visitante = equipoVisitanteEncontrado;
+        partidoEncontrado.FechaHora = partido.FechaHora;
+        partidoEncontrado.MarcadorLocal = partido.MarcadorLocal;
+        partidoEncontrado.MarcadorVisitante = partido.MarcadorVisitante;
+        _dataContext.SaveChanges();
+    }
+    else
+    {
+        Console.WriteLine("No se encontró el partido");
+    }
+    
+    return partidoEncontrado ?? throw new Exception("Partido not found");
+}
+```
+
+**Updated Properties:**
+- `Local` - Home team
+- `Visitante` - Visiting team
+- `FechaHora` - Match date and time
+- `MarcadorLocal` - Home team score
+- `MarcadorVisitante` - Visiting team score
+
+**Usage Example:**
+
+```csharp
+try
+{
+    // Get existing match
+    var partido = repositorioPartido.GetPartido(10);
+    
+    // Update score
+    partido.MarcadorLocal = 2;
+    partido.MarcadorVisitante = 1;
+    
+    // Update in database
+    var partidoActualizado = repositorioPartido.UpdatePartido(
+        partido,
+        idEquipoLocal: partido.Local.Id,
+        idEquipoVisitante: partido.Visitante.Id
+    );
+    
+    Console.WriteLine($"Marcador actualizado: {partidoActualizado.MarcadorLocal} - {partidoActualizado.MarcadorVisitante}");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Error: {ex.Message}");
+}
+```
+
+---
+
+### DeletePartidos
+
+Deletes a match from the database.
+
+<ParamField path="idPartido" type="int" required>
+  The ID of the match to delete
+</ParamField>
+
+<ResponseField name="return" type="Partido">
+  The deleted Partido entity
+</ResponseField>
+
+<ResponseField name="exception" type="Exception">
+  Throws exception with message "Partido not found" if the ID doesn't exist
+</ResponseField>
+
+```csharp Implementation (Lines 64-83)
+public Partido DeletePartidos(int idPartido)
+{
+    var partidoEncontrado = GetPartido(idPartido);
+    if (partidoEncontrado != null)
+    {
+        _dataContext.Partidos.Remove(partidoEncontrado);
+        _dataContext.SaveChanges();
+    }
+    else
+    {
+        Console.WriteLine("No se encontró el partido");
+    }
+    return partidoEncontrado ?? throw new Exception("Partido not found");
+}
+```
+
+**Usage Example:**
+
+```csharp
+try
+{
+    var partidoEliminado = repositorioPartido.DeletePartidos(10);
+    Console.WriteLine($"Partido eliminado: {partidoEliminado.Local?.Nombre} vs {partidoEliminado.Visitante?.Nombre}");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Error: {ex.Message}");
+}
+```
+
+---
+
+### validateDuplicates
+
+Validates whether a match with the same teams and date/time already exists.
+
+<ParamField path="partido" type="Partido" required>
+  The Partido entity to validate
+</ParamField>
+
+<ParamField path="idEquipoLocal" type="int" required>
+  The home team ID to check against
+</ParamField>
+
+<ParamField path="idEquipoVisitante" type="int" required>
+  The visiting team ID to check against
+</ParamField>
+
+<ResponseField name="return" type="bool">
+  `true` if a duplicate match exists (same teams and date/time), `false` otherwise
+</ResponseField>
+
+```csharp Implementation (Lines 86-118)
+public bool validateDuplicates(Partido partido, int idEquipoLocal, int idEquipoVisitante)
+{
+    try
+    {
+        IEnumerable<Partido> allPartidos = GetAllPartidos();
+        bool duplicado = false;
+        
+        foreach(Partido p in allPartidos)
+        {
+            if(p.Id != partido.Id)
+            {
+                // Check exact match: Local vs Visitante at same time
+                if((p.Local.Id == idEquipoLocal) 
+                   && (p.Visitante.Id == idEquipoVisitante) 
+                   && (p.FechaHora == partido.FechaHora))
+                {
+                    duplicado = true;
+                    break;
+                }
+                // Check reverse match: Visitante vs Local at same time
+                else if((p.Local.Id == idEquipoVisitante) 
+                        && (p.Visitante.Id == idEquipoLocal) 
+                        && (p.FechaHora == partido.FechaHora))
+                {
+                    duplicado = true;
+                    break;
+                }
+            }
+        }
+        
+        Console.WriteLine("Partido duplicado al Crear/Editar " + partido.Local + " - " + duplicado);
+        return duplicado;
+    }
+    catch(Exception e)
+    {
+        Console.WriteLine("Error Validacion " + e.Message);
+        return false;
+    }
+}
+```
+
+**Validation Logic:**
+1. Checks if same teams play at same date/time
+2. Also checks reverse scenario (teams swapped as home/away)
+3. Excludes current match when updating (checks `p.Id != partido.Id`)
+4. Returns `false` on any exception
+
+<Note>
+**Smart Duplicate Detection:**
+
+This validation prevents both:
+- Exact duplicates: Team A (home) vs Team B (away) at same time
+- Reverse duplicates: Team B (home) vs Team A (away) at same time
+
+This ensures no two teams can play each other at the same time, regardless of home/away designation.
+</Note>
+
+**Usage Example:**
+
+```csharp
+var nuevoPartido = new Partido
+{
+    FechaHora = new DateTime(2024, 6, 15, 18, 0, 0),
+    MarcadorLocal = 0,
+    MarcadorVisitante = 0
+};
+
+if (repositorioPartido.validateDuplicates(nuevoPartido, idEquipoLocal: 5, idEquipoVisitante: 8))
+{
+    Console.WriteLine("Error: Ya existe un partido entre estos equipos en esta fecha y hora");
+}
+else
+{
+    repositorioPartido.AddPartido(nuevoPartido, 5, 8);
+    Console.WriteLine("Partido creado exitosamente");
+}
+```
+
+## Dependency Injection
+
+Register the repository in `Program.cs`:
+
+```csharp Program.cs (Line 19)
+builder.Services.AddSingleton<IRepositorioPartido, RepositorioPartido>();
+```
+
+Inject into controllers:
+
+```csharp
+public class PartidoController : Controller
+{
+    private readonly IRepositorioPartido _repositorioPartido;
+    private readonly IRepositorioEquipo _repositorioEquipo;
+    
+    public PartidoController(
+        IRepositorioPartido repositorioPartido,
+        IRepositorioEquipo repositorioEquipo)
+    {
+        _repositorioPartido = repositorioPartido;
+        _repositorioEquipo = repositorioEquipo;
+    }
+}
+```
+
+## Common Workflows
+
+<AccordionGroup>
+  <Accordion title="Scheduling a Match">
+    ```csharp
+    // 1. Create match entity
+    var partido = new Partido
+    {
+        FechaHora = new DateTime(2024, 6, 15, 18, 0, 0),
+        MarcadorLocal = 0,
+        MarcadorVisitante = 0
+    };
+    
+    int equipoLocal = 5;
+    int equipoVisitante = 8;
+    
+    // 2. Validate duplicates
+    if (!repositorioPartido.validateDuplicates(partido, equipoLocal, equipoVisitante))
+    {
+        // 3. Create match
+        try
+        {
+            var resultado = repositorioPartido.AddPartido(partido, equipoLocal, equipoVisitante);
+            Console.WriteLine($"Partido programado: {resultado.Local?.Nombre} vs {resultado.Visitante?.Nombre}");
+            Console.WriteLine($"Fecha: {resultado.FechaHora:yyyy-MM-dd HH:mm}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+    }
+    else
+    {
+        Console.WriteLine("Ya existe un partido entre estos equipos en esta fecha");
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Updating Match Score">
+    ```csharp
+    try
+    {
+        // 1. Get match
+        var partido = repositorioPartido.GetPartido(10);
+        
+        // 2. Update scores
+        partido.MarcadorLocal = 3;
+        partido.MarcadorVisitante = 2;
+        
+        // 3. Save changes
+        var partidoActualizado = repositorioPartido.UpdatePartido(
+            partido,
+            idEquipoLocal: partido.Local.Id,
+            idEquipoVisitante: partido.Visitante.Id
+        );
+        
+        Console.WriteLine($"Marcador final: {partidoActualizado.Local?.Nombre} {partidoActualizado.MarcadorLocal} - {partidoActualizado.MarcadorVisitante} {partidoActualizado.Visitante?.Nombre}");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error: {ex.Message}");
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Getting Team Match History">
+    ```csharp
+    int equipoId = 5;
+    var todosPartidos = repositorioPartido.GetAllPartidos();
+    
+    // Get all matches where team played (home or away)
+    var partidosEquipo = todosPartidos
+        .Where(p => p.Local?.Id == equipoId || p.Visitante?.Id == equipoId)
+        .OrderByDescending(p => p.FechaHora)
+        .ToList();
+    
+    Console.WriteLine($"Historial de partidos (Total: {partidosEquipo.Count}):");
+    
+    foreach (var partido in partidosEquipo)
+    {
+        bool esLocal = partido.Local?.Id == equipoId;
+        var rival = esLocal ? partido.Visitante : partido.Local;
+        var marcador = esLocal 
+            ? $"{partido.MarcadorLocal} - {partido.MarcadorVisitante}" 
+            : $"{partido.MarcadorVisitante} - {partido.MarcadorLocal}";
+        
+        Console.WriteLine($"{partido.FechaHora:yyyy-MM-dd} vs {rival?.Nombre}: {marcador} ({(esLocal ? "Local" : "Visitante")})");
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Finding Upcoming Matches">
+    ```csharp
+    var todosPartidos = repositorioPartido.GetAllPartidos();
+    var ahora = DateTime.Now;
+    
+    var partidosPendientes = todosPartidos
+        .Where(p => p.FechaHora > ahora)
+        .OrderBy(p => p.FechaHora)
+        .ToList();
+    
+    Console.WriteLine($"Próximos partidos ({partidosPendientes.Count}):\n");
+    
+    foreach (var partido in partidosPendientes)
+    {
+        var diasRestantes = (partido.FechaHora - ahora).Days;
+        Console.WriteLine($"{partido.FechaHora:yyyy-MM-dd HH:mm} (en {diasRestantes} días)");
+        Console.WriteLine($"  {partido.Local?.Nombre} vs {partido.Visitante?.Nombre}");
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Related Entities
+
+<CardGroup cols={2}>
+  <Card title="Partido Entity" icon="futbol" href="/api/entities/partido">
+    Domain model for matches
+  </Card>
+  <Card title="Equipo Repository" icon="shield" href="/api/repositories/equipo">
+    Team data access
+  </Card>
+</CardGroup>
+
+## Business Rules
+
+<Warning>
+**Match Validation Rules:**
+
+1. **No Duplicate Matches**: Same teams cannot play at the same date/time
+2. **Reverse Match Detection**: Team A vs Team B = Team B vs Team A (same match)
+3. **Team Existence**: Both home and visiting teams must exist in the database
+4. **Date/Time Required**: All matches must have a valid FechaHora value
+</Warning>
+
+## Error Handling
+
+<Note>
+Multiple methods throw exceptions when entities are not found:
+- `AddPartido` - throws if insert fails
+- `GetPartido` - throws if match not found
+- `UpdatePartido` - throws if match not found
+- `DeletePartidos` - throws if match not found
+
+Always use try-catch blocks when calling these methods.
+</Note>
+
+## Performance Considerations
+
+<Note>
+**Optimization Tips:**
+- All read operations use `.AsNoTracking()` for better performance
+- `validateDuplicates()` loads all matches - consider date-range queries for production
+- Use `.Include()` only when you need team information
+- Consider adding indexes on `FechaHora` for faster date-based queries
+</Note>

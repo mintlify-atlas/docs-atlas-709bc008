@@ -1,0 +1,184 @@
+---
+title: 'Tournament Management'
+description: 'Complete overview of tournament organization and management capabilities'
+icon: 'trophy'
+---
+
+## Overview
+
+The Tournament Management App provides a comprehensive platform for organizing and managing soccer tournaments. The system handles all aspects of tournament operations, from team registration to match scheduling and score tracking.
+
+<Note>
+All tournament management features require user authentication. Users must be logged in to create, edit, or delete tournament data.
+</Note>
+
+## Core Entities
+
+The tournament system is built around five main entities that work together to manage tournament operations:
+
+<CardGroup cols={2}>
+  <Card title="Teams (Equipos)" icon="users">
+    Teams are the foundation of the tournament, representing competing organizations with their own roster of players.
+  </Card>
+  
+  <Card title="Players (Jugadores)" icon="user">
+    Individual athletes assigned to teams with specific positions and jersey numbers.
+  </Card>
+  
+  <Card title="Matches (Partidos)" icon="calendar">
+    Scheduled games between teams with date/time and score tracking capabilities.
+  </Card>
+  
+  <Card title="Technical Directors (DTs)" icon="user-tie">
+    Coaches who manage and lead teams throughout the tournament.
+  </Card>
+  
+  <Card title="Municipalities (Municipios)" icon="map-pin">
+    Geographic locations that teams represent in the tournament.
+  </Card>
+</CardGroup>
+
+## Tournament Structure
+
+The application organizes tournaments with the following hierarchical structure:
+
+```
+Tournament
+├── Municipalities (Geographic Organization)
+│   └── Teams
+│       ├── Technical Director
+│       └── Players (with Positions)
+└── Matches
+    ├── Local Team (Home)
+    └── Visiting Team (Away)
+```
+
+## Key Features
+
+<Accordion title="Team Registration & Management">
+  - Register new teams with municipality and technical director assignments
+  - Edit team information including name, location, and coaching staff
+  - View complete team rosters with player details
+  - Filter teams by municipality
+  - Search teams by name
+  - Delete teams (when not involved in scheduled matches)
+</Accordion>
+
+<Accordion title="Player Management">
+  - Add players to teams with specific positions
+  - Assign jersey numbers (1-99)
+  - Transfer players between teams
+  - Update player positions
+  - View player statistics and team assignments
+</Accordion>
+
+<Accordion title="Match Scheduling & Tracking">
+  - Schedule matches between registered teams
+  - Set match date and time
+  - Record scores for home and away teams
+  - Edit match details and results
+  - View match history
+  - Delete matches when necessary
+</Accordion>
+
+<Accordion title="Administrative Functions">
+  - Manage technical directors and their contact information
+  - Organize teams by geographic municipalities
+  - Define player positions available in the system
+  - Track team performance through match results
+</Accordion>
+
+## Data Validation & Business Rules
+
+The system enforces strict validation rules to maintain data integrity:
+
+### Team Rules
+- Team names must be 3-50 characters
+- Names cannot be only numbers
+- Each team must be assigned to a municipality
+- Each team must have a technical director
+- Duplicate team names are not allowed
+
+### Player Rules
+- Player names must be 3-50 characters (letters only)
+- Jersey numbers must be between 1 and 99
+- Each player must be assigned to a team and position
+- No duplicate players (same name, number, and position on same team)
+
+### Match Rules
+- Date and time are required for all matches
+- Scores must be between 0 and 100
+- Both home (local) and away (visitante) teams required
+- Duplicate matches (same teams, same date/time) are prevented
+
+### Technical Director Rules
+- Names must be 3-30 characters (letters only)
+- Document ID: 7-11 digits (no repeating patterns)
+- Phone numbers: 7-12 digits
+- All fields are required
+
+## User Interface Features
+
+<Steps>
+  <Step title="Browse & Filter">
+    View lists of teams, players, and matches with filtering options by municipality, team, or date.
+  </Step>
+  
+  <Step title="Search Functionality">
+    Quickly find teams by name using the built-in search feature.
+  </Step>
+  
+  <Step title="Create & Edit">
+    User-friendly forms with dropdown selections for related entities (municipalities, teams, positions).
+  </Step>
+  
+  <Step title="View Details">
+    Detailed views showing complete information about teams, players, and matches.
+  </Step>
+  
+  <Step title="Delete Protection">
+    Intelligent deletion that prevents removing entities involved in active relationships (e.g., teams with scheduled matches).
+  </Step>
+</Steps>
+
+## Navigation
+
+The application provides dedicated sections for each management area:
+
+- **Teams Section**: Browse, create, edit, and delete teams
+- **Players Section**: Manage player rosters and assignments
+- **Matches Section**: Schedule games and record results
+- **Technical Directors Section**: Manage coaching staff
+- **Municipalities Section**: Organize geographic locations
+- **Positions Section**: Define available player positions
+
+## Security & Access Control
+
+All tournament management functions are protected by authentication:
+
+- Anonymous users can view tournament information
+- Authenticated users can create, edit, and delete data
+- The `[Authorize]` attribute protects all creation and modification pages
+- Users must be logged in to access management features
+
+For detailed information about authentication, see the [User Authentication](/features/user-authentication) documentation.
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Team Management" icon="users" href="/features/team-management">
+    Detailed guide on team creation and management
+  </Card>
+  
+  <Card title="Player Management" icon="user" href="/features/player-management">
+    Complete player management workflows
+  </Card>
+  
+  <Card title="Match Management" icon="calendar" href="/features/match-management">
+    Scheduling and tracking matches
+  </Card>
+  
+  <Card title="User Authentication" icon="shield" href="/features/user-authentication">
+    Security and access control system
+  </Card>
+</CardGroup>

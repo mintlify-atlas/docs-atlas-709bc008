@@ -1,0 +1,600 @@
+---
+title: 'Equipo Repository'
+description: 'Repository for managing team (Equipo) entities with advanced querying capabilities'
+---
+
+## Overview
+
+The `IRepositorioEquipo` interface and `RepositorioEquipo` implementation provide comprehensive data access operations for managing teams. This repository includes advanced features like search by name, filtering by municipality, and managing relationships with municipalities and technical directors.
+
+## Interface Definition
+
+```csharp IRepositorioEquipo.cs
+using Torneo.App.Dominio;
+
+namespace Torneo.App.Persistencia
+{
+    public interface IRepositorioEquipo
+    {
+        public Equipo AddEquipo(Equipo equipo, int idMunicipio, int idDT);
+        public IEnumerable<Equipo> GetAllEquipos();
+        public Equipo GetEquipo(int idEquipo);
+        public Equipo UpdateEquipo(Equipo equipo, int idMunicipio, int idDT);
+        public Equipo DeleteEquipo(int equipo);
+        public IEnumerable<Equipo> GetEquiposMunicipio(int idMunicipio);
+        public IEnumerable<Equipo> SearchEquipos(string nombre);
+        public bool validateDuplicates(Equipo equipo);
+    }
+}
+```
+
+## Implementation
+
+```csharp RepositorioEquipo.cs
+using Microsoft.EntityFrameworkCore;
+using Torneo.App.Dominio;
+
+namespace Torneo.App.Persistencia
+{
+    public class RepositorioEquipo : IRepositorioEquipo
+    {
+        private DataContext _dataContext = new DataContext();
+        
+        // Implementation methods...
+    }
+}
+```
+
+## Methods Reference
+
+### AddEquipo
+
+Adds a new team to the database with associations to municipality and technical director.
+
+<ParamField path="equipo" type="Equipo" required>
+  The Equipo entity to add
+</ParamField>
+
+<ParamField path="idMunicipio" type="int" required>
+  The ID of the municipality where the team is based
+</ParamField>
+
+<ParamField path="idDT" type="int" required>
+  The ID of the technical director managing the team
+</ParamField>
+
+<ResponseField name="return" type="Equipo">
+  The inserted Equipo entity with its generated ID and populated relationships
+</ResponseField>
+
+```csharp Implementation (Lines 10-19)
+public Equipo AddEquipo(Equipo equipo, int idMunicipio, int idDT)
+{
+    var municipioEncontrado = _dataContext.Municipios.Find(idMunicipio);
+    var DTEncontrado = _dataContext.DirectoresTecnicos.Find(idDT);
+    equipo.Municipio = municipioEncontrado == null ? null : municipioEncontrado;
+    equipo.DirectorTecnico = DTEncontrado == null ? null : DTEncontrado;
+    var equipoInsertado = _dataContext.Equipos.Add(equipo);
+    _dataContext.SaveChanges();
+    return equipoInsertado.Entity;
+}
+```
+
+**Key Features:**
+- Validates municipality and technical director exist before association
+- Sets relationships to `null` if referenced entities don't exist
+- Returns complete entity with relationships
+
+**Usage Example:**
+
+```csharp
+var nuevoEquipo = new Equipo
+{
+    Nombre = "Atlético Municipal"
+};
+
+var equipoCreado = repositorioEquipo.AddEquipo(nuevoEquipo, idMunicipio: 3, idDT: 5);
+Console.WriteLine($"Equipo creado: {equipoCreado.Nombre} (ID: {equipoCreado.Id})");
+Console.WriteLine($"Municipio: {equipoCreado.Municipio?.Nombre}");
+Console.WriteLine($"DT: {equipoCreado.DirectorTecnico?.Nombre}");
+```
+
+---
+
+### GetAllEquipos
+
+Retrieves all teams with complete relationship graph.
+
+<ResponseField name="return" type="IEnumerable<Equipo>">
+  Collection of all Equipo entities with eagerly loaded relationships
+</ResponseField>
+
+```csharp Implementation (Lines 20-35)
+public IEnumerable<Equipo> GetAllEquipos()
+{
+    var equipos = _dataContext.Equipos
+                    .Include(e => e.Municipio)
+                    .Include(e => e.DirectorTecnico)
+                    .Include(e => e.Jugadores)
+                    .Include(e => e.PartidosLocal)
+                    .Include(e => e.PartidosVisitante)
+                    .AsNoTracking()
+                    .ToList();
+    
+    return equipos;
+}
+```
+
+**Included Relationships:**
+- `Municipio` - The team's home municipality
+- `DirectorTecnico` - The team's technical director
+- `Jugadores` - All players on the team
+- `PartidosLocal` - Matches where team plays as home team
+- `PartidosVisitante` - Matches where team plays as visiting team
+
+**Usage Example:**
+
+```csharp
+var todosEquipos = repositorioEquipo.GetAllEquipos();
+
+foreach (var equipo in todosEquipos)
+{
+    Console.WriteLine($"Equipo: {equipo.Nombre}");
+    Console.WriteLine($"  Municipio: {equipo.Municipio?.Nombre}");
+    Console.WriteLine($"  DT: {equipo.DirectorTecnico?.Nombre}");
+    Console.WriteLine($"  Jugadores: {equipo.Jugadores.Count()}");
+    Console.WriteLine($"  Partidos como local: {equipo.PartidosLocal.Count()}");
+    Console.WriteLine($"  Partidos como visitante: {equipo.PartidosVisitante.Count()}");
+}
+```
+
+---
+
+### GetEquipo
+
+Retrieves a specific team by ID with municipality and technical director relationships.
+
+<ParamField path="idEquipo" type="int" required>
+  The ID of the team to retrieve
+</ParamField>
+
+<ResponseField name="return" type="Equipo">
+  The Equipo entity with Municipio and DirectorTecnico loaded, or null if not found
+</ResponseField>
+
+```csharp Implementation (Lines 37-45)
+public Equipo GetEquipo(int idEquipo)
+{
+    var equipo = _dataContext.Equipos
+                    .Include(e => e.Municipio)
+                    .Include(e => e.DirectorTecnico)
+                    .FirstOrDefault(e => e.Id == idEquipo);
+    return equipo;
+}
+```
+
+**Usage Example:**
+
+```csharp
+var equipo = repositorioEquipo.GetEquipo(10);
+
+if (equipo != null)
+{
+    Console.WriteLine($"Equipo: {equipo.Nombre}");
+    Console.WriteLine($"Municipio: {equipo.Municipio?.Nombre}");
+    Console.WriteLine($"Director Técnico: {equipo.DirectorTecnico?.Nombre}");
+}
+else
+{
+    Console.WriteLine("Equipo no encontrado");
+}
+```
+
+---
+
+### UpdateEquipo
+
+Updates an existing team's information and relationships.
+
+<ParamField path="equipo" type="Equipo" required>
+  The Equipo entity with updated values (must include valid Id)
+</ParamField>
+
+<ParamField path="idMunicipio" type="int" required>
+  The ID of the new municipality (or existing)
+</ParamField>
+
+<ParamField path="idDT" type="int" required>
+  The ID of the new technical director (or existing)
+</ParamField>
+
+<ResponseField name="return" type="Equipo">
+  The updated Equipo entity with current relationships
+</ResponseField>
+
+```csharp Implementation (Lines 47-57)
+public Equipo UpdateEquipo(Equipo equipo, int idMunicipio, int idDT)
+{
+    var equipoEncontrado = GetEquipo(equipo.Id);
+    var municipioEncontrado = _dataContext.Municipios.Find(idMunicipio);
+    var DTEncontrado = _dataContext.DirectoresTecnicos.Find(idDT);
+    equipoEncontrado.Nombre = equipo.Nombre;
+    equipoEncontrado.Municipio = municipioEncontrado == null ? null : municipioEncontrado;
+    equipoEncontrado.DirectorTecnico = DTEncontrado == null ? null : DTEncontrado;
+    _dataContext.SaveChanges();
+    return equipoEncontrado;
+}
+```
+
+**Updated Properties:**
+- `Nombre` - Team name
+- `Municipio` - Associated municipality
+- `DirectorTecnico` - Associated technical director
+
+**Usage Example:**
+
+```csharp
+var equipo = repositorioEquipo.GetEquipo(10);
+if (equipo != null)
+{
+    equipo.Nombre = "Atlético Municipal FC";
+    var equipoActualizado = repositorioEquipo.UpdateEquipo(equipo, idMunicipio: 3, idDT: 7);
+    Console.WriteLine($"Equipo actualizado: {equipoActualizado.Nombre}");
+}
+```
+
+---
+
+### DeleteEquipo
+
+Deletes a team from the database.
+
+<ParamField path="idEquipo" type="int" required>
+  The ID of the team to delete
+</ParamField>
+
+<ResponseField name="return" type="Equipo">
+  The deleted Equipo entity, or null if not found
+</ResponseField>
+
+```csharp Implementation (Lines 59-76)
+public Equipo DeleteEquipo(int idEquipo)
+{
+    var equipoEncontrado = GetEquipo(idEquipo);
+    if (equipoEncontrado != null)
+    {
+        _dataContext.Equipos.Remove(equipoEncontrado);
+        _dataContext.SaveChanges();
+    }
+    else
+    {
+        Console.WriteLine("No se encontró el equipo");
+    }
+    return equipoEncontrado;
+}
+```
+
+<Warning>
+Deleting a team may fail if:
+- The team has associated players (foreign key constraint)
+- The team is referenced in matches (foreign key constraint)
+
+All foreign keys are configured with `DeleteBehavior.Restrict`.
+</Warning>
+
+**Usage Example:**
+
+```csharp
+var equipoEliminado = repositorioEquipo.DeleteEquipo(10);
+
+if (equipoEliminado != null)
+{
+    Console.WriteLine($"Equipo eliminado: {equipoEliminado.Nombre}");
+}
+else
+{
+    Console.WriteLine("No se pudo eliminar el equipo");
+}
+```
+
+---
+
+### GetEquiposMunicipio
+
+Retrieves all teams belonging to a specific municipality.
+
+<ParamField path="idMunicipio" type="int" required>
+  The ID of the municipality
+</ParamField>
+
+<ResponseField name="return" type="IEnumerable<Equipo>">
+  Collection of Equipo entities from the specified municipality with full relationships
+</ResponseField>
+
+```csharp Implementation (Lines 78-91)
+public IEnumerable<Equipo> GetEquiposMunicipio(int idMunicipio)
+{
+    var municipioEncontrado = _dataContext.Municipios.Find(idMunicipio);
+    var equipos = _dataContext.Equipos
+                .Where(e => e.Municipio == municipioEncontrado)
+                .Include(e => e.Municipio)
+                .Include(e => e.DirectorTecnico)
+                .Include(e => e.Jugadores)            // Carga explicita
+                .Include(e => e.PartidosLocal)        // Carga explicita
+                .Include(e => e.PartidosVisitante)    // Carga explicita
+                .AsNoTracking()
+                .ToList();
+    return equipos;
+}
+```
+
+**Usage Example:**
+
+```csharp
+var equiposDeMedellín = repositorioEquipo.GetEquiposMunicipio(5);
+
+Console.WriteLine($"Equipos en Medellín: {equiposDeMedellín.Count()}");
+foreach (var equipo in equiposDeMedellín)
+{
+    Console.WriteLine($"  - {equipo.Nombre}");
+    Console.WriteLine($"    Jugadores: {equipo.Jugadores.Count()}");
+    Console.WriteLine($"    DT: {equipo.DirectorTecnico?.Nombre}");
+}
+```
+
+---
+
+### SearchEquipos
+
+Searches for teams by name using partial matching.
+
+<ParamField path="nombre" type="string" required>
+  The search term to match against team names (case-sensitive partial match)
+</ParamField>
+
+<ResponseField name="return" type="IEnumerable<Equipo>">
+  Collection of Equipo entities whose names contain the search term
+</ResponseField>
+
+```csharp Implementation (Lines 92-102)
+public IEnumerable<Equipo> SearchEquipos(string nombre)
+{
+    return _dataContext.Equipos
+        .Include(e => e.Municipio)           // Carga explicita de la propiedad Municipio
+        .Include(e => e.DirectorTecnico)     // Carga explicita de la propiedad DirectorTecnico
+        .Include(e => e.Jugadores)           // Carga explicita
+        .Include(e => e.PartidosLocal)       // Carga explicita
+        .Include(e => e.PartidosVisitante)   // Carga explicita
+        .Where(e => e.Nombre.Contains(nombre))
+        .ToList();
+}
+```
+
+**Key Features:**
+- Uses `.Contains()` for partial string matching
+- Loads complete relationship graph
+- Case-sensitive search
+
+**Usage Example:**
+
+```csharp
+// Search for teams with "Atlético" in the name
+var equiposAtleticos = repositorioEquipo.SearchEquipos("Atlético");
+
+Console.WriteLine($"Equipos encontrados: {equiposAtleticos.Count()}");
+foreach (var equipo in equiposAtleticos)
+{
+    Console.WriteLine($"  - {equipo.Nombre} ({equipo.Municipio?.Nombre})");
+}
+
+// Search for teams with "FC" in the name
+var equiposFC = repositorioEquipo.SearchEquipos("FC");
+```
+
+---
+
+### validateDuplicates
+
+Validates whether a team name already exists in the database.
+
+<ParamField path="equipo" type="Equipo" required>
+  The Equipo entity to validate
+</ParamField>
+
+<ResponseField name="return" type="bool">
+  `true` if a team with the same name already exists, `false` otherwise
+</ResponseField>
+
+```csharp Implementation (Lines 145-170)
+public bool validateDuplicates(Equipo equipo)
+{
+    try
+    {
+        IEnumerable<Equipo> allEquipos = GetAllEquipos();
+        bool duplicado = false;
+        
+        foreach(Equipo e in allEquipos)
+        {
+            if(e.Nombre.ToLower() == equipo.Nombre.ToLower().Trim())
+            {
+                duplicado = true;
+            }
+        }
+        
+        return duplicado;
+    }
+    catch(Exception e)
+    {
+        return false;
+    }
+}
+```
+
+**Validation Logic:**
+- Case-insensitive comparison using `.ToLower()`
+- Trims whitespace from input
+- Returns `false` on any exception
+
+<Note>
+This validation does NOT exclude the current entity when updating (unlike DirectorTecnico validation). Any team with a matching name will be flagged as duplicate.
+</Note>
+
+**Usage Example:**
+
+```csharp
+var nuevoEquipo = new Equipo
+{
+    Nombre = "Atlético Municipal"
+};
+
+if (repositorioEquipo.validateDuplicates(nuevoEquipo))
+{
+    Console.WriteLine("Error: Ya existe un equipo con este nombre");
+}
+else
+{
+    repositorioEquipo.AddEquipo(nuevoEquipo, idMunicipio: 3, idDT: 5);
+    Console.WriteLine("Equipo creado exitosamente");
+}
+```
+
+## Dependency Injection
+
+Register the repository in `Program.cs`:
+
+```csharp Program.cs (Line 18)
+builder.Services.AddSingleton<IRepositorioEquipo, RepositorioEquipo>();
+```
+
+Inject into controllers:
+
+```csharp
+public class EquipoController : Controller
+{
+    private readonly IRepositorioEquipo _repositorioEquipo;
+    private readonly IRepositorioMunicipio _repositorioMunicipio;
+    private readonly IRepositorioDT _repositorioDT;
+    
+    public EquipoController(
+        IRepositorioEquipo repositorioEquipo,
+        IRepositorioMunicipio repositorioMunicipio,
+        IRepositorioDT repositorioDT)
+    {
+        _repositorioEquipo = repositorioEquipo;
+        _repositorioMunicipio = repositorioMunicipio;
+        _repositorioDT = repositorioDT;
+    }
+}
+```
+
+## Common Workflows
+
+<AccordionGroup>
+  <Accordion title="Creating a Team with Relationships">
+    ```csharp
+    // 1. Create team entity
+    var equipo = new Equipo { Nombre = "Atlético Municipal" };
+    
+    // 2. Validate duplicates
+    if (!repositorioEquipo.validateDuplicates(equipo))
+    {
+        // 3. Add with municipality and technical director
+        var resultado = repositorioEquipo.AddEquipo(
+            equipo,
+            idMunicipio: 3,
+            idDT: 5
+        );
+        
+        Console.WriteLine($"Equipo creado: {resultado.Nombre}");
+        Console.WriteLine($"  Municipio: {resultado.Municipio?.Nombre}");
+        Console.WriteLine($"  DT: {resultado.DirectorTecnico?.Nombre}");
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Searching and Filtering Teams">
+    ```csharp
+    // Search by name
+    var equiposBuscados = repositorioEquipo.SearchEquipos("Atlético");
+    
+    // Filter by municipality
+    var equiposMedellín = repositorioEquipo.GetEquiposMunicipio(5);
+    
+    // Get all teams
+    var todosEquipos = repositorioEquipo.GetAllEquipos();
+    
+    // Filter in memory (if needed)
+    var equiposConMasDe20Jugadores = todosEquipos
+        .Where(e => e.Jugadores.Count() > 20)
+        .ToList();
+    ```
+  </Accordion>
+  
+  <Accordion title="Updating Team Relationships">
+    ```csharp
+    // 1. Get existing team
+    var equipo = repositorioEquipo.GetEquipo(10);
+    
+    if (equipo != null)
+    {
+        // 2. Change technical director
+        var equipoActualizado = repositorioEquipo.UpdateEquipo(
+            equipo,
+            idMunicipio: equipo.Municipio.Id,  // Keep same municipality
+            idDT: 8                              // New technical director
+        );
+        
+        Console.WriteLine($"Nuevo DT: {equipoActualizado.DirectorTecnico?.Nombre}");
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Getting Team Statistics">
+    ```csharp
+    var equipo = repositorioEquipo.GetEquipo(10);
+    
+    if (equipo != null)
+    {
+        // GetAllEquipos includes all relationships
+        var equipoCompleto = repositorioEquipo.GetAllEquipos()
+            .FirstOrDefault(e => e.Id == 10);
+        
+        Console.WriteLine($"Equipo: {equipoCompleto.Nombre}");
+        Console.WriteLine($"Total jugadores: {equipoCompleto.Jugadores.Count()}");
+        Console.WriteLine($"Partidos jugados: {equipoCompleto.PartidosLocal.Count() + equipoCompleto.PartidosVisitante.Count()}");
+        Console.WriteLine($"Partidos en casa: {equipoCompleto.PartidosLocal.Count()}");
+        Console.WriteLine($"Partidos de visitante: {equipoCompleto.PartidosVisitante.Count()}");
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Related Entities
+
+<CardGroup cols={3}>
+  <Card title="Equipo Entity" icon="shield" href="/api/entities/equipo">
+    Domain model for teams
+  </Card>
+  <Card title="Municipio Repository" icon="location-dot" href="/api/repositories/municipio">
+    Municipality data access
+  </Card>
+  <Card title="DirectorTecnico Repository" icon="user-tie" href="/api/repositories/director-tecnico">
+    Technical director data access
+  </Card>
+  <Card title="Jugador Repository" icon="running" href="/api/repositories/jugador">
+    Player data access
+  </Card>
+  <Card title="Partido Repository" icon="futbol" href="/api/repositories/partido">
+    Match data access
+  </Card>
+</CardGroup>
+
+## Performance Considerations
+
+<Note>
+**Optimization Tips:**
+- `GetAllEquipos()` loads complete relationship graph - use `GetEquipo()` for single entities
+- `SearchEquipos()` performs case-sensitive search - consider adding case-insensitive variant
+- `validateDuplicates()` loads all teams - consider indexed query for production
+- All read operations use `.AsNoTracking()` for better performance
+</Note>

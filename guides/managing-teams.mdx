@@ -1,0 +1,230 @@
+---
+title: Managing Teams
+description: Step-by-step guide for creating and managing teams in the Tournament Management App
+---
+
+This guide walks you through creating, editing, and managing teams in the Tournament Management App.
+
+## Prerequisites
+
+Before creating teams, you must have:
+
+<Steps>
+  <Step title="Create Municipios (Municipalities)">
+    Teams require an associated municipality. Navigate to **Municipios > Create** to add municipalities first.
+  </Step>
+  
+  <Step title="Create Directores Técnicos (Technical Directors)">
+    Each team needs a technical director. Go to **DTs > Create** to add technical directors.
+  </Step>
+  
+  <Step title="Log in to your account">
+    Team creation and editing require authentication. Make sure you're logged in.
+  </Step>
+</Steps>
+
+<Note>
+  The application will automatically prompt you to create these prerequisite entities if they don't exist when you try to create a team.
+</Note>
+
+## Creating a New Team
+
+<Steps>
+  <Step title="Navigate to the Teams page">
+    From the main navigation menu, select **Equipos** (Teams) to view the list of existing teams.
+  </Step>
+  
+  <Step title="Click 'Crear equipos'">
+    Click the **Crear equipos** (Create teams) button at the top of the page.
+  </Step>
+  
+  <Step title="Enter team details">
+    Fill in the team information:
+    
+    - **Nombre del Equipo** (Team Name): Enter the team name
+    - **Municipio** (Municipality): Select from the dropdown
+    - **D.T.** (Technical Director): Select from the dropdown
+  </Step>
+  
+  <Step title="Submit the form">
+    Click **Crear equipo** (Create team) to save the team.
+  </Step>
+</Steps>
+
+### Team Name Validation Rules
+
+The team name must meet the following requirements:
+
+- **Required**: Cannot be empty
+- **Minimum length**: 3 characters
+- **Maximum length**: 50 characters
+- **Format**: Only letters (including accented characters) and numbers are allowed
+- **Pattern**: Cannot contain only numbers
+
+<CodeGroup>
+```text Valid Examples
+Atlético Nacional
+Deportivo Cali 2023
+Independiente Medellín
+```
+
+```text Invalid Examples
+12345          (only numbers)
+AB             (less than 3 characters)
+Team@Name      (special characters not allowed)
+```
+</CodeGroup>
+
+<Warning>
+  Duplicate team names are not allowed. If you try to create a team with a name that already exists, you'll receive an error message.
+</Warning>
+
+## Viewing Teams
+
+The teams list page provides several features:
+
+### Filter by Municipality
+
+1. Use the **Filtrar equipos por municipio** dropdown at the top of the page
+2. Select a municipality or choose **Ver todos** to see all teams
+3. Click **Filtrar** to apply the filter
+
+### Search by Name
+
+1. Use the search box under **Busqueda de equipos**
+2. Enter the team name (supports partial matches)
+3. Click **Buscar** to search
+
+<Tip>
+  The search accepts alphanumeric characters with a maximum length of 30 characters.
+</Tip>
+
+### Team Information Displayed
+
+For each team, you can view:
+
+- **Id**: Unique team identifier
+- **Nombre del Equipo**: Team name
+- **Municipio**: Associated municipality
+- **Director Técnico**: Assigned technical director
+- **Acciones**: Available actions (Detail, Edit, Delete)
+
+## Editing a Team
+
+<Steps>
+  <Step title="Locate the team">
+    Find the team you want to edit in the teams list.
+  </Step>
+  
+  <Step title="Click 'Editar'">
+    Click the **Editar** (Edit) button for that team.
+    
+    <Note>
+      This button is only available when you're logged in.
+    </Note>
+  </Step>
+  
+  <Step title="Update team details">
+    Modify any of the following:
+    
+    - Team name
+    - Municipality
+    - Technical director
+    
+    The team ID is read-only and cannot be changed.
+  </Step>
+  
+  <Step title="Save changes">
+    Click **Editar equipo** (Edit team) to save your changes.
+  </Step>
+</Steps>
+
+<Warning>
+  The same validation rules apply when editing. You cannot change a team name to one that already exists in the system.
+</Warning>
+
+## Deleting a Team
+
+Teams can only be deleted under specific conditions:
+
+### Deletion Requirements
+
+<AccordionGroup>
+  <Accordion title="No Players">
+    The team must have zero players associated with it. Remove all players before attempting to delete the team.
+  </Accordion>
+  
+  <Accordion title="No Matches as Home Team">
+    The team cannot have any matches where it appears as the home team (Local).
+  </Accordion>
+  
+  <Accordion title="No Matches as Away Team">
+    The team cannot have any matches where it appears as the away team (Visitante).
+  </Accordion>
+  
+  <Accordion title="Authentication Required">
+    You must be logged in to delete teams.
+  </Accordion>
+</AccordionGroup>
+
+### Delete Process
+
+<Steps>
+  <Step title="Verify deletion conditions">
+    Ensure the team meets all deletion requirements listed above. The **Eliminar** button will be disabled if conditions aren't met.
+  </Step>
+  
+  <Step title="Click 'Eliminar'">
+    Click the **Eliminar** (Delete) button for the team.
+  </Step>
+  
+  <Step title="Confirm deletion">
+    Confirm the action when prompted with "Esta seguro de eliminar el equipo?" (Are you sure you want to delete the team?).
+  </Step>
+</Steps>
+
+<Tip>
+  If you see a disabled **Eliminar** button (outlined in red), it means the team has associated players or matches and cannot be deleted. Remove these associations first.
+</Tip>
+
+## Viewing Team Details
+
+To view complete team information:
+
+1. Click the **Detalle** (Detail) button for any team
+2. This displays all team information including related players and matches
+3. This feature is available to all users (no login required)
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Error: Team name already exists">
+    Choose a different team name. Each team must have a unique name.
+  </Accordion>
+  
+  <Accordion title="Cannot create teams - missing prerequisites">
+    The application will show specific alerts:
+    
+    - **Missing Municipios**: Click "Crear Municipios" to create municipalities first
+    - **Missing Technical Directors**: Click "Crear Directores Tecnicos" to add directors
+    - **Missing both**: Create both entities before proceeding
+  </Accordion>
+  
+  <Accordion title="Edit/Delete buttons are disabled">
+    These actions require authentication. Log in to your account to enable these features.
+  </Accordion>
+  
+  <Accordion title="Cannot delete team">
+    The team has associated players or matches. You must:
+    
+    1. Remove or reassign all players from this team
+    2. Delete or modify matches where this team participates
+    3. Then try deleting again
+  </Accordion>
+</AccordionGroup>
+
+## Related Guides
+
+- [Managing Players](/guides/managing-players) - Add players to your teams
+- [Scheduling Matches](/guides/scheduling-matches) - Create matches between teams
+- [User Roles and Authentication](/guides/user-roles) - Learn about access control

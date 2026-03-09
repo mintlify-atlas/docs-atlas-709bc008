@@ -1,0 +1,313 @@
+---
+title: "Municipio"
+description: "Municipality entity representing geographical locations where teams are based"
+---
+
+## Overview
+
+The `Municipio` (Municipality) entity represents a geographical location in the tournament management system. Each municipality can host multiple teams, establishing the geographical organization of the tournament.
+
+## Properties
+
+<ParamField path="Id" type="int">
+  Unique identifier for the municipality.
+</ParamField>
+
+<ParamField path="Nombre" type="string" required>
+  Name of the municipality.
+  
+  **Validation Rules:**
+  - Required field (cannot be empty)
+  - Must contain only letters and spaces
+  - Cannot start or end with whitespace
+  - Minimum length: 3 characters
+  - Maximum length: 50 characters
+  - Regex pattern: `^(?!^\s)(?!.*\s$)[a-zA-ZÀ-ÿ\s]+$`
+  
+  **Display Name:** "Nombre del municipio"
+  
+  **Error Messages:**
+  - Pattern mismatch: "Solo se permiten letras"
+  - Required: "El nombre del municipio es obligatorio."
+  - Max length: "El nombre del municipio no puede tener más de 50 caracteres."
+  - Min length: "El nombre del municipio no puede tener menos de 3 caracteres."
+</ParamField>
+
+<ParamField path="Equipos" type="List<Equipo>">
+  Collection of teams based in this municipality.
+  
+  **Default Value:** Empty list
+  
+  **Relationship:** One-to-Many (One municipality can have zero or multiple teams, but each team belongs to exactly one municipality)
+  
+  **Related Entity:** [Equipo](/api/models/equipo)
+</ParamField>
+
+## Relationships
+
+### Teams (Equipos)
+
+<ResponseField name="Equipos" type="List<Equipo>">
+  A municipality can host multiple teams. This is a one-to-many relationship where the municipality is the parent entity.
+  
+  **Navigation Property:** `Equipos`
+  
+  **Cardinality:** One municipality to many teams (0..\*)
+  
+  **Related Entity:** [Equipo](/api/models/equipo)
+  
+  **Business Rule:** A municipality can have zero or multiple teams, but each team must belong to exactly one municipality.
+</ResponseField>
+
+<Note>
+The relationship comment in the source code explicitly states: "Un municipio puede tener 0 o varios equipos, pero un equipo pertenece a un único municipio" (A municipality can have 0 or multiple teams, but a team belongs to a single municipality).
+</Note>
+
+## Validation Attributes
+
+The `Municipio` entity uses the following Data Annotations:
+
+- `[Required]` - Ensures the municipality name is mandatory
+- `[RegularExpression]` - Validates name contains only letters and spaces with no leading/trailing whitespace
+- `[MaxLength]` / `[MinLength]` - Enforces character length constraints
+- `[Display]` - Provides user-friendly display name
+- `[DisplayFormat]` - Prevents empty strings from being converted to null
+
+## Code Examples
+
+### Entity Definition
+
+```csharp
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace Torneo.App.Dominio
+{
+    public class Municipio
+    {
+        public int Id { get; set; }
+
+        [RegularExpression(@"^(?!^\s)(?!.*\s$)[a-zA-ZÀ-ÿ\s]+$", 
+            ErrorMessage = "Solo se permiten letras")]
+        [Display(Name = "Nombre del municipio")]
+        [Required(AllowEmptyStrings=false, 
+            ErrorMessage = "El nombre del municipio es obligatorio.")]       
+        [DisplayFormat(ConvertEmptyStringToNull=false)]
+        [MaxLength(50, ErrorMessage = "El nombre del municipio no puede tener más de 50 caracteres.")]
+        [MinLength(3, ErrorMessage = "El nombre del municipio no puede tener menos de 3 caracteres.")]
+        public string Nombre { get; set; }
+
+        public List<Equipo> Equipos { get; set; } = new List<Equipo>();
+    }
+}
+```
+
+### Creating a Municipality
+
+```csharp
+var municipio = new Municipio
+{
+    Nombre = "Bogotá"
+};
+```
+
+### Creating a Municipality with Teams
+
+```csharp
+var municipio = new Municipio
+{
+    Nombre = "Medellín",
+    Equipos = new List<Equipo>
+    {
+        new Equipo { Nombre = "Atlético Nacional" },
+        new Equipo { Nombre = "Deportivo Independiente Medellín" }
+    }
+};
+```
+
+### Valid Name Examples
+
+```csharp
+// Valid municipality names
+Nombre = "Bogotá";
+Nombre = "Cali";
+Nombre = "Santa Marta";
+Nombre = "San José del Guaviare";
+Nombre = "Cartagena de Indias";
+```
+
+### Invalid Name Examples
+
+<Warning>
+These examples will fail validation:
+</Warning>
+
+```csharp
+// Invalid municipality names
+Nombre = "123";              // Contains only numbers
+Nombre = "Bogotá123";        // Contains numbers
+Nombre = " Cali";            // Starts with whitespace
+Nombre = "Cali ";            // Ends with whitespace
+Nombre = "AB";               // Less than 3 characters
+Nombre = "";                 // Empty (required)
+Nombre = "A".PadRight(51);   // More than 50 characters
+```
+
+### Querying Municipalities
+
+```csharp
+// Get all municipalities with their teams
+var municipiosWithTeams = context.Municipios
+    .Include(m => m.Equipos)
+    .ToList();
+
+// Get municipalities that have teams
+var municipiosConEquipos = context.Municipios
+    .Where(m => m.Equipos.Any())
+    .ToList();
+
+// Get municipalities with no teams
+var municipiosSinEquipos = context.Municipios
+    .Where(m => !m.Equipos.Any())
+    .ToList();
+
+// Get municipality by name
+var bogota = context.Municipios
+    .FirstOrDefault(m => m.Nombre == "Bogotá");
+```
+
+### Adding Teams to a Municipality
+
+```csharp
+// Add a single team
+var equipo = new Equipo { Nombre = "Millonarios FC" };
+municipio.Equipos.Add(equipo);
+
+// Add multiple teams
+var nuevosEquipos = new List<Equipo>
+{
+    new Equipo { Nombre = "Santa Fe" },
+    new Equipo { Nombre = "La Equidad" }
+};
+municipio.Equipos.AddRange(nuevosEquipos);
+```
+
+### Municipality Statistics
+
+```csharp
+// Count teams per municipality
+var teamCounts = context.Municipios
+    .Select(m => new 
+    { 
+        Municipio = m.Nombre, 
+        NumeroEquipos = m.Equipos.Count 
+    })
+    .OrderByDescending(x => x.NumeroEquipos)
+    .ToList();
+
+// Get municipalities with most teams
+var municipioConMasEquipos = context.Municipios
+    .OrderByDescending(m => m.Equipos.Count)
+    .FirstOrDefault();
+```
+
+### Validation in Practice
+
+```csharp
+// Example: Validate before saving
+public bool ValidateMunicipio(Municipio municipio)
+{
+    var validationContext = new ValidationContext(municipio);
+    var validationResults = new List<ValidationResult>();
+    
+    bool isValid = Validator.TryValidateObject(
+        municipio, 
+        validationContext, 
+        validationResults, 
+        validateAllProperties: true
+    );
+    
+    if (!isValid)
+    {
+        foreach (var validationResult in validationResults)
+        {
+            Console.WriteLine(validationResult.ErrorMessage);
+        }
+    }
+    
+    return isValid;
+}
+```
+
+## Common Use Cases
+
+### Geographic Tournament Organization
+
+```csharp
+// Group matches by municipality
+var matchesByMunicipality = context.Partidos
+    .Include(p => p.Local)
+        .ThenInclude(e => e.Municipio)
+    .GroupBy(p => p.Local.Municipio.Nombre)
+    .Select(g => new 
+    { 
+        Municipio = g.Key, 
+        TotalMatches = g.Count() 
+    });
+```
+
+### Regional Leagues
+
+```csharp
+// Get all teams from a specific region
+var teamsByRegion = context.Municipios
+    .Where(m => m.Nombre.StartsWith("San"))
+    .SelectMany(m => m.Equipos)
+    .ToList();
+```
+
+### Tournament Coverage
+
+```csharp
+// Calculate tournament geographical coverage
+var coverage = new
+{
+    TotalMunicipalities = context.Municipios.Count(),
+    MunicipalitiesWithTeams = context.Municipios.Count(m => m.Equipos.Any()),
+    TotalTeams = context.Equipos.Count()
+};
+```
+
+## Database Mapping
+
+<Note>
+The `Municipio` entity is mapped to a database table with the same name. The `Id` property serves as the primary key and is auto-generated.
+
+The relationship with `Equipo` is established through a foreign key in the Equipo table pointing to the Municipio's Id.
+</Note>
+
+## Business Rules
+
+### Zero-to-Many Relationship
+
+The municipality-team relationship supports the following scenarios:
+
+1. **New Municipality**: A municipality can be created without any teams
+2. **Active Municipality**: A municipality with one or more teams
+3. **Empty Municipality**: A municipality that had teams but currently has none (teams moved or dissolved)
+
+### Data Integrity
+
+<Warning>
+When deleting a municipality, consider the following:
+- Determine whether to cascade delete teams or prevent deletion if teams exist
+- Implement business logic to handle orphaned teams
+- Consider soft deletes for historical data preservation
+</Warning>
+
+## Related Entities
+
+- [Equipo](/api/models/equipo) - Teams based in this municipality
+- [DirectorTecnico](/api/models/director-tecnico) - Technical directors of teams (indirect)
+- [Jugador](/api/models/jugador) - Players on teams in this municipality (indirect)
+- [Partido](/api/models/partido) - Matches involving teams from this municipality (indirect)

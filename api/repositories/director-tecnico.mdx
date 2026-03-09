@@ -1,0 +1,483 @@
+---
+title: 'DirectorTecnico Repository'
+description: 'Repository for managing technical directors (DirectorTecnico) entities'
+---
+
+## Overview
+
+The `IRepositorioDT` interface and `RepositorioDT` implementation provide data access operations for managing technical directors in the tournament system. Each technical director can be associated with multiple teams.
+
+## Interface Definition
+
+```csharp IRepositorioDT.cs
+using Torneo.App.Dominio;
+
+namespace Torneo.App.Persistencia
+{
+    public interface IRepositorioDT
+    {
+        public DirectorTecnico AddDT(DirectorTecnico directorTecnico);
+        public IEnumerable<DirectorTecnico> GetAllDTs();
+        public DirectorTecnico GetDT(int Id);
+        public DirectorTecnico UpdateDT(DirectorTecnico directorTecnico);
+        public DirectorTecnico DeleteDT(int idDT);
+        public bool validateDuplicates(DirectorTecnico dtIngresado);
+    }
+}
+```
+
+## Implementation
+
+```csharp RepositorioDT.cs
+using Microsoft.EntityFrameworkCore;
+using Torneo.App.Dominio;
+
+namespace Torneo.App.Persistencia
+{
+    public class RepositorioDT : IRepositorioDT
+    {
+        private DataContext _dataContext = new DataContext();
+        
+        // Implementation methods...
+    }
+}
+```
+
+## Methods Reference
+
+### AddDT
+
+Adds a new technical director to the database.
+
+<ParamField path="directorTecnico" type="DirectorTecnico" required>
+  The DirectorTecnico entity to add
+</ParamField>
+
+<ResponseField name="return" type="DirectorTecnico">
+  The inserted DirectorTecnico entity with its generated ID
+</ResponseField>
+
+```csharp Implementation (Lines 8-14)
+public DirectorTecnico AddDT(DirectorTecnico directorTecnico)
+{
+    var dtInsertado = _dataContext.DirectoresTecnicos.Add(directorTecnico);
+    _dataContext.SaveChanges();
+    
+    return dtInsertado.Entity;
+}
+```
+
+**Usage Example:**
+
+```csharp
+var nuevoDT = new DirectorTecnico
+{
+    Nombre = "Carlos Pérez",
+    Documento = "12345678",
+    Telefono = "3001234567"
+};
+
+var dtCreado = repositorioDT.AddDT(nuevoDT);
+Console.WriteLine($"DT creado con ID: {dtCreado.Id}");
+```
+
+---
+
+### GetAllDTs
+
+Retrieves all technical directors with their associated teams.
+
+<ResponseField name="return" type="IEnumerable<DirectorTecnico>">
+  Collection of all DirectorTecnico entities with eagerly loaded Equipos
+</ResponseField>
+
+```csharp Implementation (Lines 16-28)
+public IEnumerable<DirectorTecnico> GetAllDTs()
+{
+    var Dts = _dataContext.DirectoresTecnicos
+                    .Include(e => e.Equipos)
+                    .AsNoTracking()
+                    .ToList();
+    
+    return Dts;
+}
+```
+
+**Key Features:**
+- Uses `.Include(e => e.Equipos)` to eagerly load related teams
+- Uses `.AsNoTracking()` for improved read performance
+- Returns complete object graph including teams
+
+**Usage Example:**
+
+```csharp
+var todosDTs = repositorioDT.GetAllDTs();
+
+foreach (var dt in todosDTs)
+{
+    Console.WriteLine($"DT: {dt.Nombre}");
+    Console.WriteLine($"  Equipos: {dt.Equipos.Count()}");
+}
+```
+
+---
+
+### GetDT
+
+Retrieves a specific technical director by ID.
+
+<ParamField path="IdDT" type="int" required>
+  The ID of the technical director to retrieve
+</ParamField>
+
+<ResponseField name="return" type="DirectorTecnico">
+  The DirectorTecnico entity, or null if not found
+</ResponseField>
+
+```csharp Implementation (Lines 29-33)
+public DirectorTecnico GetDT(int IdDT)
+{
+    var DTEncontrado = _dataContext.DirectoresTecnicos.Find(IdDT);
+    return DTEncontrado;
+}
+```
+
+**Usage Example:**
+
+```csharp
+var dt = repositorioDT.GetDT(5);
+
+if (dt != null)
+{
+    Console.WriteLine($"Nombre: {dt.Nombre}");
+    Console.WriteLine($"Documento: {dt.Documento}");
+    Console.WriteLine($"Teléfono: {dt.Telefono}");
+}
+else
+{
+    Console.WriteLine("DT no encontrado");
+}
+```
+
+---
+
+### UpdateDT
+
+Updates an existing technical director's information.
+
+<ParamField path="dt" type="DirectorTecnico" required>
+  The DirectorTecnico entity with updated values (must include valid Id)
+</ParamField>
+
+<ResponseField name="return" type="DirectorTecnico">
+  The updated DirectorTecnico entity
+</ResponseField>
+
+<ResponseField name="exception" type="Exception">
+  Throws exception with message "DT not found" if the ID doesn't exist
+</ResponseField>
+
+```csharp Implementation (Lines 34-49)
+public DirectorTecnico UpdateDT(DirectorTecnico dt)
+{
+    var dtEncontrado = _dataContext.DirectoresTecnicos.Find(dt.Id);
+    
+    // Si el director tecnico encontrado es diferente de nulo
+    if (dtEncontrado != null)
+    {
+        dtEncontrado.Nombre = dt.Nombre;
+        dtEncontrado.Documento = dt.Documento;
+        dtEncontrado.Telefono = dt.Telefono;
+        _dataContext.SaveChanges();
+    }
+    else
+    {
+        Console.WriteLine("No se encontró el DT");
+    }
+    
+    return dtEncontrado ?? throw new Exception("DT not found");
+}
+```
+
+**Updated Properties:**
+- `Nombre` - Technical director's name
+- `Documento` - Identification document number
+- `Telefono` - Phone number
+
+**Usage Example:**
+
+```csharp
+var dtExistente = repositorioDT.GetDT(5);
+if (dtExistente != null)
+{
+    dtExistente.Telefono = "3009876543";
+    dtExistente.Nombre = "Carlos Alberto Pérez";
+    
+    try
+    {
+        var dtActualizado = repositorioDT.UpdateDT(dtExistente);
+        Console.WriteLine($"DT actualizado: {dtActualizado.Nombre}");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error: {ex.Message}");
+    }
+}
+```
+
+---
+
+### DeleteDT
+
+Deletes a technical director from the database.
+
+<ParamField path="idDT" type="int" required>
+  The ID of the technical director to delete
+</ParamField>
+
+<ResponseField name="return" type="DirectorTecnico">
+  The deleted DirectorTecnico entity
+</ResponseField>
+
+<ResponseField name="exception" type="Exception">
+  Throws exception with message "DT not found" if the ID doesn't exist
+</ResponseField>
+
+```csharp Implementation (Lines 50-63)
+public DirectorTecnico DeleteDT(int idDT)
+{
+    var dtEncontrado = GetDT(idDT);
+    if (dtEncontrado != null)
+    {
+        _dataContext.DirectoresTecnicos.Remove(dtEncontrado);
+        _dataContext.SaveChanges();
+    }
+    else
+    {
+        Console.WriteLine("No se encontró el DT");
+    }
+    
+    return dtEncontrado ?? throw new Exception("DT not found");
+}
+```
+
+<Note>
+Deleting a technical director may fail if they are referenced by teams due to foreign key constraints configured with `DeleteBehavior.Restrict`.
+</Note>
+
+**Usage Example:**
+
+```csharp
+try
+{
+    var dtEliminado = repositorioDT.DeleteDT(5);
+    Console.WriteLine($"DT eliminado: {dtEliminado.Nombre}");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Error al eliminar: {ex.Message}");
+}
+```
+
+---
+
+### validateDuplicates
+
+Validates whether a technical director's document number already exists in the database.
+
+<ParamField path="dtIngresado" type="DirectorTecnico" required>
+  The DirectorTecnico entity to validate
+</ParamField>
+
+<ResponseField name="return" type="bool">
+  `true` if a duplicate document exists (different DT with same document), `false` otherwise
+</ResponseField>
+
+```csharp Implementation (Lines 65-102)
+public bool validateDuplicates(DirectorTecnico dtIngresado)
+{
+    try
+    {
+        IEnumerable<DirectorTecnico> allDT = GetAllDTs();
+        bool duplicado = false;
+        
+        foreach(DirectorTecnico directoresTecnicos in allDT)
+        {
+            // Validacion si el documento ingresado ya existe en BD
+            if(directoresTecnicos.Documento == dtIngresado.Documento.Trim())
+            {
+                Console.WriteLine($"id dt lista {directoresTecnicos.Id}");
+                Console.WriteLine($"id dt ingresado {dtIngresado.Id}");
+                
+                // Validacion para no marcarlo como duplicado si se edita otro campo del DT
+                if(directoresTecnicos.Id == dtIngresado.Id)
+                {
+                    duplicado = false;
+                    Console.WriteLine($"id igual no duplicado {directoresTecnicos.Id}");
+                }
+                else
+                {
+                    duplicado = true;
+                    Console.WriteLine($"id diferente duplicado {directoresTecnicos.Id}");
+                    break;
+                }
+            }
+        }
+        
+        return duplicado;
+    }
+    catch(Exception e)
+    {
+        Console.WriteLine("Error Validacion duplicado " + e.Message);
+        return false;
+    }
+}
+```
+
+**Validation Logic:**
+1. Compares `Documento` field (trimmed) with existing records
+2. If same ID, allows update (not considered duplicate)
+3. If different ID with same document, marks as duplicate
+4. Returns `false` on any exception
+
+**Usage Example:**
+
+```csharp
+var nuevoDT = new DirectorTecnico
+{
+    Nombre = "Juan López",
+    Documento = "12345678",
+    Telefono = "3001111111"
+};
+
+if (repositorioDT.validateDuplicates(nuevoDT))
+{
+    Console.WriteLine("Error: Ya existe un DT con este documento");
+}
+else
+{
+    repositorioDT.AddDT(nuevoDT);
+    Console.WriteLine("DT creado exitosamente");
+}
+```
+
+## Dependency Injection
+
+Register the repository in `Program.cs`:
+
+```csharp
+builder.Services.AddSingleton<IRepositorioDT, RepositorioDT>();
+```
+
+Inject into controllers or services:
+
+```csharp
+public class DirectorTecnicoController : Controller
+{
+    private readonly IRepositorioDT _repositorioDT;
+    
+    public DirectorTecnicoController(IRepositorioDT repositorioDT)
+    {
+        _repositorioDT = repositorioDT;
+    }
+}
+```
+
+## Related Entities
+
+<CardGroup cols={2}>
+  <Card title="DirectorTecnico Entity" icon="user-tie" href="/api/entities/director-tecnico">
+    Domain model for technical directors
+  </Card>
+  <Card title="Equipo Repository" icon="shield" href="/api/repositories/equipo">
+    Teams managed by technical directors
+  </Card>
+</CardGroup>
+
+## Common Workflows
+
+<AccordionGroup>
+  <Accordion title="Creating a Technical Director">
+    ```csharp
+    // 1. Create entity
+    var dt = new DirectorTecnico
+    {
+        Nombre = "Carlos Pérez",
+        Documento = "12345678",
+        Telefono = "3001234567"
+    };
+    
+    // 2. Validate duplicates
+    if (!repositorioDT.validateDuplicates(dt))
+    {
+        // 3. Add to database
+        var resultado = repositorioDT.AddDT(dt);
+        Console.WriteLine($"Creado con ID: {resultado.Id}");
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Updating a Technical Director">
+    ```csharp
+    // 1. Get existing entity
+    var dt = repositorioDT.GetDT(5);
+    
+    if (dt != null)
+    {
+        // 2. Modify properties
+        dt.Telefono = "3009999999";
+        
+        // 3. Validate duplicates
+        if (!repositorioDT.validateDuplicates(dt))
+        {
+            // 4. Update
+            repositorioDT.UpdateDT(dt);
+        }
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Listing All Technical Directors with Teams">
+    ```csharp
+    var allDTs = repositorioDT.GetAllDTs();
+    
+    foreach (var dt in allDTs)
+    {
+        Console.WriteLine($"DT: {dt.Nombre} ({dt.Documento})");
+        Console.WriteLine($"  Teléfono: {dt.Telefono}");
+        Console.WriteLine($"  Equipos ({dt.Equipos.Count()}):");
+        
+        foreach (var equipo in dt.Equipos)
+        {
+            Console.WriteLine($"    - {equipo.Nombre}");
+        }
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Error Handling
+
+<Warning>
+The `UpdateDT` and `DeleteDT` methods throw exceptions when the entity is not found. Always handle these exceptions:
+
+```csharp
+try
+{
+    var resultado = repositorioDT.UpdateDT(dt);
+}
+catch (Exception ex)
+{
+    // Handle "DT not found" exception
+    Console.WriteLine($"Error: {ex.Message}");
+}
+```
+</Warning>
+
+## Performance Considerations
+
+<Note>
+- `GetAllDTs()` uses `.AsNoTracking()` for improved read performance
+- `validateDuplicates()` calls `GetAllDTs()`, which may be inefficient for large datasets
+- Consider implementing indexed queries for duplicate validation in production
+</Note>

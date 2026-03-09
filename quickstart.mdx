@@ -1,80 +1,282 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: 'Quickstart Guide'
+description: 'Get up and running with the Tournament Management App in minutes'
 ---
 
-## Get started in three steps
+This guide will help you get the Tournament Management App running and walk you through creating your first team. You'll learn the basics of tournament management in just a few minutes.
 
-Get your documentation site running locally and make your first customization.
+## Prerequisites
 
-### Step 1: Set up your local environment
+Before you begin, ensure you have one of the following installed:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+- [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) for local development
+- [Docker](https://www.docker.com/get-started) for containerized deployment
+
+## Quick Start with Docker
+
+The fastest way to get started is using Docker Compose:
+
+<Steps>
+  <Step title="Clone the Repository">
+    ```bash
+    git clone https://github.com/AlexanderAsprilla98/TorneoFutbol
+    cd TorneoFutbol
+    ```
+  </Step>
+
+  <Step title="Start the Application">
+    ```bash
+    docker-compose up -d
+    ```
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    This command will:
+    - Build the Docker image with all dependencies
+    - Initialize the SQLite database
+    - Run database migrations automatically
+    - Start the application on port 5000
+  </Step>
+
+  <Step title="Access the Application">
+    Open your browser and navigate to:
+    ```
+    http://localhost:5000
+    ```
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    <Note>
+      The first startup may take 1-2 minutes as Docker builds the image and initializes the database.
+    </Note>
+  </Step>
+</Steps>
 
-### Step 2: Deploy your changes
+## Quick Start with .NET CLI
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+For local development without Docker:
+
+<Steps>
+  <Step title="Clone and Navigate">
+    ```bash
+    git clone https://github.com/AlexanderAsprilla98/TorneoFutbol
+    cd TorneoFutbol/Torneo.App/Torneo.App.Frontend
+    ```
+  </Step>
+
+  <Step title="Set Database Connection">
+    ```bash
+    export DATABASE_CONNECTION_STRING="Data Source=./Torneo.db"
+    ```
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    <Note>
+      On Windows PowerShell, use:
+      ```powershell
+      $env:DATABASE_CONNECTION_STRING="Data Source=./Torneo.db"
+      ```
+    </Note>
+  </Step>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+  <Step title="Run the Application">
+    ```bash
+    dotnet run
+    ```
+    
+    The application will be available at `http://localhost:5000`
+  </Step>
+</Steps>
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+## Creating Your First Team
 
-### Step 3: Go live
+Once the application is running, follow these steps to create your first team:
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+<Steps>
+  <Step title="Create a Municipality">
+    Teams are associated with municipalities. Navigate to **Municipios** → **Create**.
+    
+    Fill in the municipality details:
+    - **Name**: Enter a municipality name (3-50 characters, letters only)
+    - Example: "Medellín" or "Bogotá"
+    
+    Click **Crear municipio** to save.
+    
+    <Note>
+      Municipality names must contain only letters and spaces, between 3 and 50 characters.
+    </Note>
+  </Step>
 
-## Next steps
+  <Step title="Create a Technical Director">
+    Every team needs a technical director (coach). Navigate to **DTs** → **Create**.
+    
+    Fill in the director's information:
+    - **Name**: Full name (3-30 characters)
+    - **Document**: ID number (7-11 digits, no repeated digits)
+    - **Phone**: Contact phone (7-12 digits)
+    
+    Example:
+    ```yaml
+    Name: Carlos Rodriguez
+    Document: 12345678
+    Phone: 3001234567
+    ```
+    
+    Click **Crear D.T.** to save.
+  </Step>
 
-Now that you have your docs running, explore these key features:
+  <Step title="Create Your Team">
+    Now you can create a team! Navigate to **Equipos** → **Create**.
+    
+    Fill in the team details:
+    - **Team Name**: Enter team name (3-50 characters)
+    - **Municipality**: Select from dropdown
+    - **Technical Director**: Select from dropdown
+    
+    Example:
+    ```yaml
+    Team Name: Águilas FC
+    Municipality: Medellín
+    Technical Director: Carlos Rodriguez
+    ```
+    
+    Click **Crear equipo** to save.
+    
+    <Warning>
+      If you see an error message, make sure you have created at least one Municipality and one Technical Director first. The form will guide you to create these prerequisites.
+    </Warning>
+  </Step>
+
+  <Step title="Add Players to Your Team">
+    With your team created, add players! Navigate to **Jugadores** → **Create**.
+    
+    Fill in player details:
+    - **Name**: Player's full name (3-50 characters)
+    - **Number**: Jersey number (1-99)
+    - **Team**: Select your newly created team
+    - **Position**: Select player position
+    
+    Example:
+    ```yaml
+    Name: Juan Pérez
+    Number: 10
+    Team: Águilas FC
+    Position: Delantero
+    ```
+    
+    <Note>
+      Jersey numbers must be unique within a team and range from 1 to 99.
+    </Note>
+  </Step>
+</Steps>
+
+## Understanding the Application Structure
+
+The Tournament Management App consists of several key modules:
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Teams (Equipos)" icon="users">
+    Manage tournament teams, including names, municipalities, and technical directors.
+  </Card>
+  
+  <Card title="Players (Jugadores)" icon="user">
+    Register players with names, jersey numbers, teams, and positions.
+  </Card>
+  
+  <Card title="Matches (Partidos)" icon="calendar">
+    Schedule and track matches between teams with scores and dates.
+  </Card>
+  
+  <Card title="Standings (Posiciones)" icon="trophy">
+    View tournament standings with wins, losses, and points.
+  </Card>
 </CardGroup>
 
+## Database Information
+
+The application uses **SQLite** as its database by default:
+
+- **Database File**: `Torneo.db` (automatically created)
+- **Connection String**: Configured via `DATABASE_CONNECTION_STRING` environment variable
+- **Migrations**: Automatically applied on startup in Docker
+
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  The database is created automatically when you first run the application. No manual setup is required.
 </Note>
+
+## Health Check
+
+Verify your application is running correctly by accessing the health endpoint:
+
+```bash
+curl http://localhost:5000/health
+```
+
+A healthy response indicates:
+- The application is running
+- Database connection is successful
+- All services are operational
+
+## Next Steps
+
+Now that you have your first team set up, explore more features:
+
+<CardGroup cols={2}>
+  <Card title="Create Positions" icon="map-pin" href="/features/positions">
+    Set up player positions for your tournament
+  </Card>
+  
+  <Card title="Schedule Matches" icon="calendar" href="/features/matches">
+    Create and manage matches between teams
+  </Card>
+  
+  <Card title="Manage Standings" icon="ranking-star" href="/features/standings">
+    Track tournament progress and rankings
+  </Card>
+  
+  <Card title="Configuration" icon="gear" href="/configuration">
+    Customize application settings and behavior
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+### Port Already in Use
+
+If port 5000 is already in use:
+
+<CodeGroup>
+```bash Docker
+# Edit docker-compose.yml to use a different port
+ports:
+  - "8080:80"  # Use port 8080 instead
+```
+
+```bash .NET CLI
+# Specify a different port when running
+dotnet run --urls "http://localhost:8080"
+```
+</CodeGroup>
+
+### Database Connection Issues
+
+If you encounter database errors:
+
+1. Verify the `DATABASE_CONNECTION_STRING` environment variable is set
+2. Ensure the directory has write permissions for the database file
+3. Check that SQLite is properly installed (included in .NET 8.0)
+
+### Missing Dependencies
+
+If the application fails to start:
+
+```bash
+# Restore NuGet packages
+dotnet restore
+
+# Clean and rebuild
+dotnet clean
+dotnet build
+```
+
+## Getting Help
+
+If you need assistance:
+
+- Check the [Installation Guide](/installation) for detailed setup instructions
+- Review the [Configuration Documentation](/configuration) for advanced settings
+- Open an issue on the [GitHub repository](https://github.com/AlexanderAsprilla98/TorneoFutbol)

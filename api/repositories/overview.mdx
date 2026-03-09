@@ -1,0 +1,354 @@
+---
+title: 'Repositories Overview'
+description: 'Understanding the Repository Pattern in the Tournament Management App'
+---
+
+## Repository Pattern
+
+The Tournament Management App implements the **Repository Pattern** to abstract data access logic and provide a clean separation between the business logic and data persistence layers. Each domain entity has a corresponding repository interface and implementation.
+
+## Architecture
+
+### Layer Structure
+
+```
+Torneo.App.Frontend (Presentation)
+    ↓ (Uses)
+Repositories (Data Access)
+    ↓ (Uses)
+DataContext (Entity Framework Core)
+    ↓ (Uses)
+SQLite Database
+```
+
+### Key Components
+
+<CardGroup cols={2}>
+  <Card title="Interfaces" icon="code">
+    Define the contract for data operations (CRUD + custom queries)
+  </Card>
+  <Card title="Implementations" icon="database">
+    Concrete classes that interact with Entity Framework Core DbContext
+  </Card>
+  <Card title="DataContext" icon="layer-group">
+    EF Core DbContext managing all DbSets and database configuration
+  </Card>
+  <Card title="Dependency Injection" icon="plug">
+    Repositories registered as singletons in Program.cs
+  </Card>
+</CardGroup>
+
+## Available Repositories
+
+| Repository | Interface | Purpose |
+|------------|-----------|----------|
+| [DirectorTecnico](/api/repositories/director-tecnico) | `IRepositorioDT` | Manage technical directors |
+| [Equipo](/api/repositories/equipo) | `IRepositorioEquipo` | Manage teams |
+| [Jugador](/api/repositories/jugador) | `IRepositorioJugador` | Manage players |
+| [Municipio](/api/repositories/municipio) | `IRepositorioMunicipio` | Manage municipalities |
+| [Partido](/api/repositories/partido) | `IRepositorioPartido` | Manage matches |
+| [Posicion](/api/repositories/posicion) | `IRepositorioPosicion` | Manage player positions |
+
+## Common Patterns
+
+### Standard CRUD Operations
+
+All repositories implement consistent CRUD operations:
+
+<CodeGroup>
+```csharp Add Entity
+public DirectorTecnico AddDT(DirectorTecnico directorTecnico)
+{
+    var dtInsertado = _dataContext.DirectoresTecnicos.Add(directorTecnico);
+    _dataContext.SaveChanges();
+    return dtInsertado.Entity;
+}
+```
+
+```csharp Get All
+public IEnumerable<DirectorTecnico> GetAllDTs()
+{
+    var Dts = _dataContext.DirectoresTecnicos
+                    .Include(e => e.Equipos)
+                    .AsNoTracking()
+                    .ToList();
+    return Dts;
+}
+```
+
+```csharp Get By ID
+public DirectorTecnico GetDT(int IdDT)
+{
+    var DTEncontrado = _dataContext.DirectoresTecnicos.Find(IdDT);
+    return DTEncontrado;
+}
+```
+
+```csharp Update
+public DirectorTecnico UpdateDT(DirectorTecnico dt)
+{
+    var dtEncontrado = _dataContext.DirectoresTecnicos.Find(dt.Id);
+    if (dtEncontrado != null)
+    {
+        dtEncontrado.Nombre = dt.Nombre;
+        dtEncontrado.Documento = dt.Documento;
+        dtEncontrado.Telefono = dt.Telefono;
+        _dataContext.SaveChanges();
+    }
+    return dtEncontrado ?? throw new Exception("DT not found");
+}
+```
+
+```csharp Delete
+public DirectorTecnico DeleteDT(int idDT)
+{
+    var dtEncontrado = GetDT(idDT);
+    if (dtEncontrado != null)
+    {
+        _dataContext.DirectoresTecnicos.Remove(dtEncontrado);
+        _dataContext.SaveChanges();
+    }
+    return dtEncontrado ?? throw new Exception("DT not found");
+}
+```
+</CodeGroup>
+
+### Eager Loading with Include
+
+Repositories use `.Include()` to load related entities:
+
+```csharp
+var equipos = _dataContext.Equipos
+                .Include(e => e.Municipio)           // Load municipality
+                .Include(e => e.DirectorTecnico)      // Load technical director
+                .Include(e => e.Jugadores)            // Load players
+                .Include(e => e.PartidosLocal)        // Load home matches
+                .Include(e => e.PartidosVisitante)    // Load away matches
+                .AsNoTracking()
+                .ToList();
+```
+
+### AsNoTracking for Read Operations
+
+Query operations use `.AsNoTracking()` for better performance:
+
+```csharp
+var jugadores = _dataContext.Jugadores
+                .Include(j => j.Equipo)
+                .Include(j => j.Posicion)
+                .AsNoTracking()  // Improves read performance
+                .ToList();
+```
+
+<Note>
+`AsNoTracking()` tells EF Core not to track entities in the change tracker, improving performance for read-only queries.
+</Note>
+
+### Duplicate Validation
+
+All repositories implement a `validateDuplicates` method:
+
+```csharp
+public bool validateDuplicates(DirectorTecnico dtIngresado)
+{
+    try
+    {
+        IEnumerable<DirectorTecnico> allDT = GetAllDTs();
+        bool duplicado = false;
+        
+        foreach(DirectorTecnico directoresTecnicos in allDT)
+        {
+            if(directoresTecnicos.Documento == dtIngresado.Documento.Trim())
+            {
+                if(directoresTecnicos.Id == dtIngresado.Id)
+                {
+                    duplicado = false; // Same entity being edited
+                }
+                else
+                {
+                    duplicado = true;
+                    break;
+                }
+            }
+        }
+        return duplicado;
+    }
+    catch(Exception e)
+    {
+        Console.WriteLine("Error Validacion duplicado " + e.Message);
+        return false;
+    }
+}
+```
+
+## DataContext Configuration
+
+The `DataContext` class inherits from `DbContext` and manages all entity sets:
+
+```csharp DataContext.cs
+using Microsoft.EntityFrameworkCore;
+using Torneo.App.Dominio;
+
+namespace Torneo.App.Persistencia
+{
+    public class DataContext : DbContext
+    {
+        public DbSet<Municipio> Municipios { get; set; }
+        public DbSet<DirectorTecnico> DirectoresTecnicos { get; set; }
+        public DbSet<Equipo> Equipos { get; set; }
+        public DbSet<Partido> Partidos { get; set; }
+        public DbSet<Posicion> Posiciones { get; set; }
+        public DbSet<Jugador> Jugadores { get; set; }
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            if (!optionsBuilder.IsConfigured)
+            {
+                var connectionString = Environment.GetEnvironmentVariable("DATABASE_CONNECTION_STRING") 
+                    ?? "Data Source=/app/Torneo.db";
+                optionsBuilder.UseSqlite(connectionString);
+            }
+        }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+            // Set all foreign keys to Restrict delete behavior
+            foreach (var relationship in modelBuilder.Model.GetEntityTypes()
+                .SelectMany(e => e.GetForeignKeys()))
+            {
+                relationship.DeleteBehavior = DeleteBehavior.Restrict;
+            }
+        }
+    }
+}
+```
+
+<Note>
+The DataContext configures all foreign keys with `DeleteBehavior.Restrict` to prevent cascading deletes and maintain referential integrity.
+</Note>
+
+## Dependency Injection Setup
+
+Repositories are registered in `Program.cs` as **singletons**:
+
+```csharp Program.cs (Lines 16-21)
+builder.Services.AddSingleton<IRepositorioMunicipio, RepositorioMunicipio>();
+builder.Services.AddSingleton<IRepositorioDT, RepositorioDT>();
+builder.Services.AddSingleton<IRepositorioEquipo, RepositorioEquipo>();
+builder.Services.AddSingleton<IRepositorioPartido, RepositorioPartido>();
+builder.Services.AddSingleton<IRepositorioPosicion, RepositorioPosicion>();
+builder.Services.AddSingleton<IRepositorioJugador, RepositorioJugador>();
+```
+
+### Using Repositories in Controllers
+
+```csharp
+public class EquipoController : Controller
+{
+    private readonly IRepositorioEquipo _repositorioEquipo;
+    private readonly IRepositorioMunicipio _repositorioMunicipio;
+    private readonly IRepositorioDT _repositorioDT;
+
+    public EquipoController(
+        IRepositorioEquipo repositorioEquipo,
+        IRepositorioMunicipio repositorioMunicipio,
+        IRepositorioDT repositorioDT)
+    {
+        _repositorioEquipo = repositorioEquipo;
+        _repositorioMunicipio = repositorioMunicipio;
+        _repositorioDT = repositorioDT;
+    }
+}
+```
+
+## Error Handling
+
+Repositories use two main error handling patterns:
+
+### 1. Exception Throwing
+
+```csharp
+public DirectorTecnico UpdateDT(DirectorTecnico dt)
+{
+    var dtEncontrado = _dataContext.DirectoresTecnicos.Find(dt.Id);
+    if (dtEncontrado != null)
+    {
+        // Update logic
+        _dataContext.SaveChanges();
+    }
+    return dtEncontrado ?? throw new Exception("DT not found");
+}
+```
+
+### 2. Null Returns
+
+```csharp
+public Equipo DeleteEquipo(int idEquipo)
+{
+    var equipoEncontrado = GetEquipo(idEquipo);
+    if (equipoEncontrado != null)
+    {
+        _dataContext.Equipos.Remove(equipoEncontrado);
+        _dataContext.SaveChanges();
+    }
+    else
+    {
+        Console.WriteLine("No se encontró el equipo");
+    }
+    return equipoEncontrado; // May return null
+}
+```
+
+## Database Provider
+
+The application uses **SQLite** as its database provider:
+
+- **Connection String**: `Data Source=/app/Torneo.db`
+- **Provider**: `Microsoft.EntityFrameworkCore.Sqlite`
+- **Configurable**: Via `DATABASE_CONNECTION_STRING` environment variable
+
+<Note>
+The codebase includes commented-out SQL Server configuration for future migration scenarios.
+</Note>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use AsNoTracking for Read Operations">
+    Apply `.AsNoTracking()` to queries that don't need to update entities. This improves performance by preventing EF Core from tracking changes.
+  </Accordion>
+  
+  <Accordion title="Eager Load Related Entities">
+    Use `.Include()` to load related entities in a single query, avoiding N+1 query problems.
+  </Accordion>
+  
+  <Accordion title="Validate Before Persisting">
+    Call `validateDuplicates` before Add/Update operations to prevent constraint violations.
+  </Accordion>
+  
+  <Accordion title="Handle Null Cases">
+    Check for null returns from repository methods before accessing properties.
+  </Accordion>
+  
+  <Accordion title="Use Dependency Injection">
+    Always inject repositories through constructor injection rather than creating instances directly.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="DirectorTecnico Repository" icon="user-tie" href="/api/repositories/director-tecnico">
+    Manage technical directors
+  </Card>
+  <Card title="Equipo Repository" icon="shield" href="/api/repositories/equipo">
+    Manage teams with advanced queries
+  </Card>
+  <Card title="Jugador Repository" icon="running" href="/api/repositories/jugador">
+    Manage players and positions
+  </Card>
+  <Card title="Partido Repository" icon="futbol" href="/api/repositories/partido">
+    Manage matches and scores
+  </Card>
+</CardGroup>

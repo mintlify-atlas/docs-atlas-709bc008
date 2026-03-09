@@ -1,0 +1,417 @@
+---
+title: 'Entity Framework Migrations'
+description: 'Database schema management with EF Core migrations'
+icon: 'arrows-rotate'
+---
+
+## Overview
+
+Entity Framework Core migrations provide a way to incrementally update the database schema to keep it in sync with the application's data model while preserving existing data.
+
+The Tournament Management App uses migrations for two separate contexts:
+- **DataContext**: Tournament domain entities
+- **IdentityDataContext**: ASP.NET Core Identity tables
+
+---
+
+## Migration Workflow
+
+The standard workflow for working with migrations involves these steps:
+
+<Steps>
+  <Step title="Install EF Core Tools">
+    Install the `dotnet-ef` global tool:
+    ```bash
+    dotnet tool install --global dotnet-ef --version 8
+    ```
+  </Step>
+
+  <Step title="Make Model Changes">
+    Modify entity classes in the `Torneo.App.Dominio` project or update the `DataContext`/`IdentityDataContext` configuration.
+  </Step>
+
+  <Step title="Create Migration">
+    Generate a new migration file that captures the model changes:
+    ```bash
+    # For DataContext
+    dotnet ef migrations add MigrationName \
+      --project Torneo.App.Persistencia/Torneo.App.Persistencia.csproj \
+      --startup-project Torneo.App.Frontend/Torneo.App.Frontend.csproj \
+      --context Torneo.App.Persistencia.DataContext
+
+    # For IdentityDataContext
+    dotnet ef migrations add MigrationName \
+      --project Torneo.App.Frontend/Torneo.App.Frontend.csproj \
+      --context Torneo.App.Frontend.Areas.Identity.Data.IdentityDataContext
+    ```
+  </Step>
+
+  <Step title="Review Migration">
+    Examine the generated migration file in the `Migrations` folder to ensure it correctly represents your changes.
+  </Step>
+
+  <Step title="Apply Migration">
+    Update the database schema:
+    ```bash
+    # For DataContext
+    dotnet ef database update \
+      --project Torneo.App.Persistencia/Torneo.App.Persistencia.csproj \
+      --startup-project Torneo.App.Frontend/Torneo.App.Frontend.csproj \
+      --context Torneo.App.Persistencia.DataContext
+
+    # For IdentityDataContext
+    dotnet ef database update \
+      --project Torneo.App.Frontend/Torneo.App.Frontend.csproj \
+      --startup-project Torneo.App.Frontend/Torneo.App.Frontend.csproj \
+      --context Torneo.App.Frontend.Areas.Identity.Data.IdentityDataContext
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Docker Build Migrations
+
+The application's Dockerfile includes automated migration creation and execution during the build process. This ensures a fresh database schema is always available in the container.
+
+### Build Process
+
+```dockerfile Dockerfile (lines 19-35)
+# Create and apply DataContext migrations
+dotnet ef migrations add InitialCreate \
+    --project Torneo.App.Persistencia/Torneo.App.Persistencia.csproj \
+    --startup-project Torneo.App.Frontend/Torneo.App.Frontend.csproj \
+    --context Torneo.App.Persistencia.DataContext \
+    --no-build --configuration Release
+
+dotnet ef database update \
+    --project Torneo.App.Persistencia/Torneo.App.Persistencia.csproj \
+    --startup-project Torneo.App.Frontend/Torneo.App.Frontend.csproj \
+    --context Torneo.App.Persistencia.DataContext
+
+# Create and apply IdentityDataContext migrations
+dotnet ef migrations add CreateIdentitySchema \
+    --project Torneo.App.Frontend/Torneo.App.Frontend.csproj \
+    --context Torneo.App.Frontend.Areas.Identity.Data.IdentityDataContext \
+    --no-build --configuration Release
+
+dotnet ef database update \
+    --project Torneo.App.Frontend/Torneo.App.Frontend.csproj \
+    --startup-project Torneo.App.Frontend/Torneo.App.Frontend.csproj \
+    --context Torneo.App.Frontend.Areas.Identity.Data.IdentityDataContext
+```
+
+<Note>
+  The Docker build process creates two migrations:
+  - `InitialCreate` for the DataContext (tournament data)
+  - `CreateIdentitySchema` for the IdentityDataContext (user authentication)
+</Note>
+
+---
+
+## Migration Commands Reference
+
+### Creating Migrations
+
+#### DataContext Migration
+
+```bash Create DataContext Migration
+dotnet ef migrations add MigrationName \
+  --project Torneo.App.Persistencia/Torneo.App.Persistencia.csproj \
+  --startup-project Torneo.App.Frontend/Torneo.App.Frontend.csproj \
+  --context Torneo.App.Persistencia.DataContext
+```
+
+#### IdentityDataContext Migration
+
+```bash Create IdentityDataContext Migration
+dotnet ef migrations add MigrationName \
+  --project Torneo.App.Frontend/Torneo.App.Frontend.csproj \
+  --context Torneo.App.Frontend.Areas.Identity.Data.IdentityDataContext
+```
+
+### Applying Migrations
+
+#### Update to Latest Migration
+
+```bash Update DataContext
+dotnet ef database update \
+  --project Torneo.App.Persistencia/Torneo.App.Persistencia.csproj \
+  --startup-project Torneo.App.Frontend/Torneo.App.Frontend.csproj \
+  --context Torneo.App.Persistencia.DataContext
+```
+
+```bash Update IdentityDataContext
+dotnet ef database update \
+  --project Torneo.App.Frontend/Torneo.App.Frontend.csproj \
+  --startup-project Torneo.App.Frontend/Torneo.App.Frontend.csproj \
+  --context Torneo.App.Frontend.Areas.Identity.Data.IdentityDataContext
+```
+
+#### Update to Specific Migration
+
+```bash Target Specific Migration
+dotnet ef database update MigrationName \
+  --project Torneo.App.Persistencia/Torneo.App.Persistencia.csproj \
+  --startup-project Torneo.App.Frontend/Torneo.App.Frontend.csproj \
+  --context Torneo.App.Persistencia.DataContext
+```
+
+### Listing Migrations
+
+```bash List DataContext Migrations
+dotnet ef migrations list \
+  --project Torneo.App.Persistencia/Torneo.App.Persistencia.csproj \
+  --startup-project Torneo.App.Frontend/Torneo.App.Frontend.csproj \
+  --context Torneo.App.Persistencia.DataContext
+```
+
+### Removing Migrations
+
+<Warning>
+  Only remove a migration if it hasn't been applied to any database yet. If the migration has been applied, you must roll it back first.
+</Warning>
+
+```bash Remove Last Migration
+dotnet ef migrations remove \
+  --project Torneo.App.Persistencia/Torneo.App.Persistencia.csproj \
+  --startup-project Torneo.App.Frontend/Torneo.App.Frontend.csproj \
+  --context Torneo.App.Persistencia.DataContext
+```
+
+### Generating SQL Scripts
+
+Generate SQL scripts without applying them to the database:
+
+```bash Generate SQL Script
+dotnet ef migrations script \
+  --project Torneo.App.Persistencia/Torneo.App.Persistencia.csproj \
+  --startup-project Torneo.App.Frontend/Torneo.App.Frontend.csproj \
+  --context Torneo.App.Persistencia.DataContext \
+  --output migration.sql
+```
+
+---
+
+## Rollback Procedures
+
+To rollback the database to a previous migration:
+
+<Steps>
+  <Step title="List Available Migrations">
+    View all migrations to identify the target migration:
+    ```bash
+    dotnet ef migrations list \
+      --project Torneo.App.Persistencia/Torneo.App.Persistencia.csproj \
+      --startup-project Torneo.App.Frontend/Torneo.App.Frontend.csproj \
+      --context Torneo.App.Persistencia.DataContext
+    ```
+  </Step>
+
+  <Step title="Update to Target Migration">
+    Rollback to a specific migration:
+    ```bash
+    dotnet ef database update PreviousMigrationName \
+      --project Torneo.App.Persistencia/Torneo.App.Persistencia.csproj \
+      --startup-project Torneo.App.Frontend/Torneo.App.Frontend.csproj \
+      --context Torneo.App.Persistencia.DataContext
+    ```
+  </Step>
+
+  <Step title="Remove Unwanted Migrations">
+    After rolling back, remove the migration files:
+    ```bash
+    dotnet ef migrations remove \
+      --project Torneo.App.Persistencia/Torneo.App.Persistencia.csproj \
+      --startup-project Torneo.App.Frontend/Torneo.App.Frontend.csproj \
+      --context Torneo.App.Persistencia.DataContext
+    ```
+  </Step>
+</Steps>
+
+### Rollback to Empty Database
+
+To completely reset the database:
+
+```bash Rollback All Migrations
+dotnet ef database update 0 \
+  --project Torneo.App.Persistencia/Torneo.App.Persistencia.csproj \
+  --startup-project Torneo.App.Frontend/Torneo.App.Frontend.csproj \
+  --context Torneo.App.Persistencia.DataContext
+```
+
+<Warning>
+  Using `dotnet ef database update 0` will remove all tables from the database. This operation is destructive and will result in data loss.
+</Warning>
+
+---
+
+## Common Issues and Solutions
+
+### Issue: "No executable found matching command dotnet-ef"
+
+**Solution**: Install the EF Core tools globally:
+
+```bash
+dotnet tool install --global dotnet-ef --version 8
+```
+
+Verify installation:
+
+```bash
+dotnet ef --version
+```
+
+### Issue: "Build failed"
+
+**Solution**: Build the solution before creating migrations:
+
+```bash
+dotnet build Torneo.App.sln -c Release
+```
+
+Then add the `--no-build` flag to the migration command:
+
+```bash
+dotnet ef migrations add MigrationName \
+  --project Torneo.App.Persistencia/Torneo.App.Persistencia.csproj \
+  --startup-project Torneo.App.Frontend/Torneo.App.Frontend.csproj \
+  --context Torneo.App.Persistencia.DataContext \
+  --no-build --configuration Release
+```
+
+### Issue: "Your startup project doesn't reference Microsoft.EntityFrameworkCore.Design"
+
+**Solution**: Ensure the startup project (`Torneo.App.Frontend`) has the following package reference:
+
+```xml Torneo.App.Frontend.csproj
+<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.0">
+  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+  <PrivateAssets>all</PrivateAssets>
+</PackageReference>
+```
+
+### Issue: "Unable to create an object of type 'DataContext'"
+
+**Solution**: Ensure the `DATABASE_CONNECTION_STRING` environment variable is set:
+
+```bash
+export DATABASE_CONNECTION_STRING="Data Source=/app/Torneo.db"
+```
+
+Or update the `OnConfiguring` method in `DataContext.cs` to use a hardcoded connection string for development.
+
+### Issue: Foreign Key Constraint Violations
+
+**Solution**: The application uses `DeleteBehavior.Restrict` for all relationships. When deleting entities, you must:
+
+1. First delete or update all dependent entities
+2. Then delete the parent entity
+
+Example:
+
+```csharp Delete Team with Dependencies
+// First remove players from the team
+foreach (var jugador in equipo.Jugadores)
+{
+    context.Jugadores.Remove(jugador);
+}
+
+// Then remove the team
+context.Equipos.Remove(equipo);
+context.SaveChanges();
+```
+
+### Issue: Migration Conflicts in Docker Build
+
+**Solution**: If migrations already exist, the Docker build will fail. Either:
+
+1. Remove existing migrations before building:
+   ```bash
+   rm -rf Torneo.App.Persistencia/Migrations
+   rm -rf Torneo.App.Frontend/Migrations
+   ```
+
+2. Modify the Dockerfile to check for existing migrations before creating new ones
+
+---
+
+## Migration Files Structure
+
+Migration files are generated in the following locations:
+
+- **DataContext migrations**: `Torneo.App.Persistencia/Migrations/`
+- **IdentityDataContext migrations**: `Torneo.App.Frontend/Migrations/`
+
+Each migration consists of three files:
+
+1. `[Timestamp]_[MigrationName].cs` - Contains `Up()` and `Down()` methods
+2. `[Timestamp]_[MigrationName].Designer.cs` - Metadata for the migration
+3. `[ContextName]ModelSnapshot.cs` - Current state of the entire model
+
+### Example Migration Structure
+
+```csharp Migration Up Method
+public partial class InitialCreate : Migration
+{
+    protected override void Up(MigrationBuilder migrationBuilder)
+    {
+        migrationBuilder.CreateTable(
+            name: "Municipios",
+            columns: table => new
+            {
+                Id = table.Column<int>(nullable: false)
+                    .Annotation("Sqlite:Autoincrement", true),
+                Nombre = table.Column<string>(maxLength: 50, nullable: false)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("PK_Municipios", x => x.Id);
+            });
+    }
+
+    protected override void Down(MigrationBuilder migrationBuilder)
+    {
+        migrationBuilder.DropTable(name: "Municipios");
+    }
+}
+```
+
+---
+
+## Environment Variables
+
+The following environment variables affect migration behavior:
+
+<ParamField path="DATABASE_CONNECTION_STRING" type="string" default="Data Source=/app/Torneo.db">
+  SQLite connection string. Override to use a different database location or SQL Server.
+</ParamField>
+
+<ParamField path="MSSQL_SA_PASSWORD" type="string" required={false}>
+  SQL Server SA password. Only required if using SQL Server instead of SQLite.
+</ParamField>
+
+---
+
+## Best Practices
+
+1. **Always review migrations** before applying them to production databases
+2. **Test migrations** on a development database first
+3. **Back up your database** before applying migrations in production
+4. **Use descriptive migration names** that indicate what changed (e.g., `AddPhoneNumberToDirector`, `CreatePartidoTable`)
+5. **Never modify applied migrations** - create a new migration instead
+6. **Keep migrations small** - one logical change per migration
+7. **Generate SQL scripts** for production deployments instead of running migrations directly
+
+---
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Data Contexts" icon="database" href="/api/data/context">
+    Learn about DataContext and IdentityDataContext
+  </Card>
+  <Card title="Domain Entities" icon="cube" href="/api/domain/overview">
+    Explore the domain model entities
+  </Card>
+</CardGroup>

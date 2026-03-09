@@ -1,0 +1,342 @@
+---
+title: Scheduling Matches
+description: Step-by-step guide for scheduling and managing matches in the Tournament Management App
+---
+
+This guide covers how to create, edit, and manage matches between teams in the Tournament Management App.
+
+## Prerequisites
+
+Before scheduling matches, you need:
+
+<Steps>
+  <Step title="Create at least two teams">
+    Matches require two different teams (home and away). Navigate to **Equipos > Create** to add teams.
+  </Step>
+  
+  <Step title="Log in to your account">
+    Match creation and editing require authentication.
+  </Step>
+</Steps>
+
+<Warning>
+  You must have at least 2 teams created before you can schedule any matches. The application will prevent match creation and show an error if this requirement isn't met.
+</Warning>
+
+## Creating a New Match
+
+<Steps>
+  <Step title="Navigate to the Matches page">
+    From the main navigation menu, select **Partidos** (Matches).
+  </Step>
+  
+  <Step title="Click 'Crear partido'">
+    Click the **Crear partido** (Create match) button.
+  </Step>
+  
+  <Step title="Enter match details">
+    Fill in all required fields:
+    
+    - **Fecha y hora** (Date and time): Select the match date and time
+    - **Seleccione un Equipo Local** (Select Home Team): Choose the home team
+    - **Marcador Local** (Home Score): Enter the home team's score (0-100)
+    - **Seleccione un Equipo Visitante** (Select Away Team): Choose the away team
+    - **Marcador Visitante** (Away Score): Enter the away team's score (0-100)
+  </Step>
+  
+  <Step title="Submit the form">
+    Click **Crear partido** (Create match) to save the match.
+  </Step>
+</Steps>
+
+<Note>
+  The date/time field automatically populates with the current date and time when you open the create form.
+</Note>
+
+## Match Field Validation
+
+### Date and Time
+
+- **Required**: Cannot be empty
+- **Format**: Uses HTML5 datetime-local input (YYYY-MM-DDTHH:MM)
+- **Default**: Current date and time
+
+### Team Selection
+
+- **Home Team (Local)**: Required selection from dropdown
+- **Away Team (Visitante)**: Required selection from dropdown
+- **Important**: The same team cannot be selected for both home and away
+
+<Tip>
+  **Smart Team Selection**: When you select a home team, that team is automatically hidden from the away team dropdown, and vice versa. This prevents accidentally selecting the same team twice.
+</Tip>
+
+### Score Validation
+
+#### Home Score (Marcador Local)
+- **Required**: Cannot be empty
+- **Type**: Must be a number
+- **Range**: Between 0 and 100 (inclusive)
+- **Default**: 0
+
+#### Away Score (Marcador Visitante)
+- **Required**: Cannot be empty
+- **Type**: Must be a number
+- **Range**: Between 0 and 100 (inclusive)
+- **Default**: 0
+
+<CodeGroup>
+```text Valid Scores
+0
+1
+5
+100
+```
+
+```text Invalid Scores
+-1              (negative numbers)
+101             (above maximum)
+ABC             (not a number)
+```
+</CodeGroup>
+
+<Warning>
+  **Duplicate Prevention**: You cannot create a match with the same home team, away team, and exact date/time as an existing match. This prevents duplicate match entries.
+</Warning>
+
+## Team Selection Interface
+
+The match creation form includes intelligent team selection:
+
+### How It Works
+
+1. **Initial State**: Both dropdowns show all available teams
+2. **Select Home Team**: The selected team is hidden from the away team dropdown
+3. **Select Away Team**: The selected team is hidden from the home team dropdown
+4. **Change Selection**: Previously hidden teams become available again
+
+<Accordion title="Technical Implementation">
+  The form uses JavaScript to dynamically hide/show options based on your selections:
+  
+  ```javascript
+  // When you select a home team:
+  // - That team is hidden in the away team dropdown
+  // - Previously hidden teams are shown again
+  
+  // When you select an away team:
+  // - That team is hidden in the home team dropdown
+  // - Previously hidden teams are shown again
+  ```
+  
+  This ensures you can't accidentally schedule a match where a team plays against itself.
+</Accordion>
+
+## Viewing Matches
+
+The matches list displays:
+
+- **Match date and time**
+- **Home team (Local)**
+- **Home score**
+- **Away team (Visitante)**
+- **Away score**
+- **Action buttons** (Detail, Edit, Delete)
+
+<Tip>
+  All users can view match details, but editing and deleting require authentication.
+</Tip>
+
+## Editing a Match
+
+<Steps>
+  <Step title="Locate the match">
+    Find the match you want to edit in the matches list.
+  </Step>
+  
+  <Step title="Click 'Editar'">
+    Click the **Editar** (Edit) button for that match.
+    
+    <Note>
+      You must be logged in to see this button.
+    </Note>
+  </Step>
+  
+  <Step title="Update match details">
+    Modify any of the following:
+    
+    - Date and time
+    - Home team
+    - Home score
+    - Away team
+    - Away score
+    
+    The match ID is read-only.
+  </Step>
+  
+  <Step title="Save changes">
+    Click **Editar partido** (Edit match) to save your changes.
+  </Step>
+</Steps>
+
+### Edit Validation
+
+When editing a match:
+
+- All validation rules still apply
+- You cannot create a duplicate (same teams and date/time)
+- The smart team selection still prevents selecting the same team twice
+- Scores must remain within the 0-100 range
+
+## Deleting a Match
+
+<Steps>
+  <Step title="Ensure you're logged in">
+    Authentication is required to delete matches.
+  </Step>
+  
+  <Step title="Locate the match">
+    Find the match you want to delete in the list.
+  </Step>
+  
+  <Step title="Click 'Eliminar'">
+    Click the **Eliminar** (Delete) button.
+  </Step>
+  
+  <Step title="Confirm deletion">
+    Confirm the action when prompted.
+  </Step>
+</Steps>
+
+<Note>
+  Matches can typically be deleted without complex dependencies, unlike teams which may have players and matches associated with them.
+</Note>
+
+## Viewing Match Details
+
+To see complete match information:
+
+1. Click the **Detalle** (Detail) button for any match
+2. This displays all match data including teams, scores, and date/time
+3. Available to all users without authentication
+
+## Common Scenarios
+
+<AccordionGroup>
+  <Accordion title="Scheduling a tournament">
+    To schedule multiple matches:
+    
+    1. Create all matches with their scheduled date/time
+    2. Initially set scores to 0-0
+    3. After each match is played, edit the match to update the final score
+    4. Use different date/times for each match
+  </Accordion>
+  
+  <Accordion title="Recording match results">
+    For matches that have been played:
+    
+    1. Find the scheduled match in the list
+    2. Click **Editar**
+    3. Update the **Marcador Local** and **Marcador Visitante** fields
+    4. Save the changes
+  </Accordion>
+  
+  <Accordion title="Rescheduling a match">
+    To change a match date:
+    
+    1. Edit the match
+    2. Update the **Fecha y hora** field to the new date/time
+    3. Ensure the new date/time doesn't create a duplicate
+    4. Save
+  </Accordion>
+  
+  <Accordion title="Swapping home and away teams">
+    If you need to change which team is home/away:
+    
+    1. Edit the match
+    2. Select the new home team from **Equipo Local**
+    3. Select the new away team from **Equipo Visitante**
+    4. Swap the scores if they've already been recorded
+    5. Save
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Error: Match already exists">
+    This means a match with the same home team, away team, and exact date/time already exists.
+    
+    **Solutions**:
+    - Change the date/time
+    - Select different teams
+    - Check if this is a duplicate entry
+  </Accordion>
+  
+  <Accordion title="Cannot create matches - not enough teams">
+    The application shows an alert: "Primero se deben crear minimos 2 Equipos antes de crear Partidos"
+    
+    **Solution**: Click "Crear Equipos" to create at least 2 teams before scheduling matches.
+  </Accordion>
+  
+  <Accordion title="Cannot select different teams">
+    If both team dropdowns seem to show the same team:
+    
+    1. Refresh the page
+    2. Select a home team first
+    3. The JavaScript should automatically hide that team from the away dropdown
+  </Accordion>
+  
+  <Accordion title="Score validation error">
+    Ensure your scores:
+    
+    - Are between 0 and 100
+    - Contain only digits
+    - Are not empty
+    - Are realistic for soccer/football (typically 0-10)
+  </Accordion>
+  
+  <Accordion title="Date/time not saving correctly">
+    Make sure:
+    
+    - The browser supports HTML5 datetime-local input
+    - You've selected both a date AND a time
+    - The format is correct (YYYY-MM-DDTHH:MM)
+  </Accordion>
+  
+  <Accordion title="Edit/Delete buttons are disabled">
+    These actions require authentication. Log in to your account to enable these features.
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<Tip>
+  **Tournament Organization**: Create all matches at the beginning with 0-0 scores, then update scores as matches are played. This gives you a complete tournament schedule upfront.
+</Tip>
+
+<Tip>
+  **Realistic Scores**: While the system allows scores up to 100, keep scores realistic for soccer/football (typically 0-10 range).
+</Tip>
+
+<Tip>
+  **Scheduling**: Space matches appropriately in time to allow teams to rest and travel. Don't schedule the same team to play multiple matches at the same time.
+</Tip>
+
+<Tip>
+  **Documentation**: Use the match date/time field precisely. If a match is postponed, update it immediately to avoid confusion.
+</Tip>
+
+## Match Data Relationships
+
+Understanding how matches relate to teams:
+
+- Each team has a list of **PartidosLocal** (matches where it's the home team)
+- Each team has a list of **PartidosVisitante** (matches where it's the away team)
+- When you delete a team, all associated matches must be handled first
+- A single match creates relationships with two teams (home and away)
+
+## Related Guides
+
+- [Managing Teams](/guides/managing-teams) - Create and manage teams that play in matches
+- [Managing Players](/guides/managing-players) - Manage the players on your teams
+- [User Roles and Authentication](/guides/user-roles) - Understand who can create and edit matches

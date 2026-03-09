@@ -1,0 +1,285 @@
+---
+title: Managing Players
+description: Step-by-step guide for adding and managing players in the Tournament Management App
+---
+
+This guide explains how to create, edit, and manage players in the Tournament Management App.
+
+## Prerequisites
+
+Before creating players, ensure you have:
+
+<Steps>
+  <Step title="Create at least one team">
+    Players must be assigned to a team. Navigate to **Equipos > Create** to add teams first.
+  </Step>
+  
+  <Step title="Create positions">
+    Each player needs a position assignment. Go to **Posiciones > Create** to add positions (e.g., Goalkeeper, Defender, Midfielder, Forward).
+  </Step>
+  
+  <Step title="Log in to your account">
+    Player creation and editing require authentication.
+  </Step>
+</Steps>
+
+<Note>
+  If you try to create a player without teams or positions, the application will automatically prompt you to create these prerequisite entities first.
+</Note>
+
+## Creating a New Player
+
+<Steps>
+  <Step title="Navigate to the Players page">
+    From the main navigation menu, select **Jugadores** (Players).
+  </Step>
+  
+  <Step title="Click 'Crear jugador'">
+    Click the **Crear jugador** (Create player) button.
+  </Step>
+  
+  <Step title="Enter player information">
+    Fill in the required fields:
+    
+    - **Nombre del Jugador** (Player Name): Enter the player's full name
+    - **Número del Jugador** (Player Number): Enter the jersey number (1-99)
+    - **Seleccione un equipo** (Select a team): Choose from the dropdown
+    - **Seleccione una Posicion** (Select a position): Choose the player's position
+  </Step>
+  
+  <Step title="Submit the form">
+    Click **Crear jugador** (Create player) to save.
+  </Step>
+</Steps>
+
+## Player Validation Rules
+
+### Player Name Requirements
+
+- **Required**: Cannot be empty
+- **Minimum length**: 3 characters
+- **Maximum length**: 50 characters
+- **Format**: Only letters and spaces allowed (including accented characters)
+- **Pattern**: Cannot contain only numbers
+
+<CodeGroup>
+```text Valid Names
+Juan Pérez
+Carlos Rodríguez García
+Miguel Ángel Torres
+```
+
+```text Invalid Names
+12345                (only numbers)
+JP                   (less than 3 characters)
+Player#10            (special characters not allowed)
+```
+</CodeGroup>
+
+### Player Number Requirements
+
+- **Required**: Cannot be empty
+- **Type**: Must be a number
+- **Range**: Between 1 and 99 (inclusive)
+- **Format**: Only numeric digits allowed
+
+<CodeGroup>
+```text Valid Numbers
+1
+10
+99
+```
+
+```text Invalid Numbers
+0                    (below minimum)
+100                  (above maximum)
+ABC                  (not a number)
+```
+</CodeGroup>
+
+<Warning>
+  **Duplicate Prevention**: You cannot create a player with the same name and number in the same team. However, the same player name or number can exist in different teams.
+</Warning>
+
+## Viewing Players
+
+The players list displays:
+
+- **Player name**
+- **Jersey number**
+- **Associated team**
+- **Position**
+- **Action buttons** (Detail, Edit, Delete)
+
+<Tip>
+  All users can view player details, but editing and deleting require authentication.
+</Tip>
+
+## Editing a Player
+
+<Steps>
+  <Step title="Locate the player">
+    Find the player in the players list page.
+  </Step>
+  
+  <Step title="Click 'Editar'">
+    Click the **Editar** (Edit) button for that player.
+    
+    <Note>
+      You must be logged in to see this button.
+    </Note>
+  </Step>
+  
+  <Step title="Update player details">
+    Modify any of the following:
+    
+    - Player name
+    - Jersey number
+    - Team assignment
+    - Position
+    
+    The player ID is read-only.
+  </Step>
+  
+  <Step title="Save changes">
+    Click **Editar jugador** (Edit player) to save your changes.
+  </Step>
+</Steps>
+
+### Edit Validation
+
+When editing a player:
+
+- All the same validation rules apply
+- You cannot create a duplicate (same name and number in the same team)
+- Leading and trailing whitespace is automatically trimmed from the player name
+
+## Deleting a Player
+
+<Steps>
+  <Step title="Ensure you're logged in">
+    Authentication is required to delete players.
+  </Step>
+  
+  <Step title="Locate the player">
+    Find the player you want to delete in the list.
+  </Step>
+  
+  <Step title="Click 'Eliminar'">
+    Click the **Eliminar** (Delete) button.
+    
+    <Note>
+      This button will be disabled if you're not authenticated.
+    </Note>
+  </Step>
+  
+  <Step title="Confirm deletion">
+    Confirm the action when prompted.
+  </Step>
+</Steps>
+
+<Tip>
+  Unlike teams, players typically don't have complex dependencies and can be deleted more easily.
+</Tip>
+
+## Viewing Player Details
+
+To see complete player information:
+
+1. Click the **Detalle** (Detail) button for any player
+2. This shows all player data including team and position information
+3. Available to all users without authentication
+
+## Common Scenarios
+
+<AccordionGroup>
+  <Accordion title="Adding multiple players to the same team">
+    You can add multiple players to the same team, but each must have:
+    
+    - A unique combination of name and number within that team
+    - A jersey number between 1-99
+    
+    Different players can have the same number if they're on different teams.
+  </Accordion>
+  
+  <Accordion title="Changing a player's team">
+    To transfer a player to another team:
+    
+    1. Click **Editar** on the player
+    2. Select the new team from the dropdown
+    3. Verify the jersey number doesn't conflict with existing players on the new team
+    4. Save the changes
+  </Accordion>
+  
+  <Accordion title="Changing a player's position">
+    Position changes are straightforward:
+    
+    1. Edit the player
+    2. Select a new position from the dropdown
+    3. Save
+    
+    All available positions are shown in the dropdown.
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Error: Player already exists in the selected team">
+    This means another player with the same name and number already exists in the selected team.
+    
+    **Solutions**:
+    - Change the player name
+    - Choose a different jersey number
+    - Select a different team
+  </Accordion>
+  
+  <Accordion title="Cannot create players - missing prerequisites">
+    The application shows specific alerts:
+    
+    - **Missing Teams**: Click "Crear Equipos" to create at least one team
+    - **Missing Positions**: Click "Crear Posiciones" to add positions
+    - **Missing both**: Create both entities first
+  </Accordion>
+  
+  <Accordion title="Jersey number validation error">
+    Ensure your number:
+    
+    - Is between 1 and 99
+    - Contains only digits (no letters or special characters)
+    - Is not empty
+  </Accordion>
+  
+  <Accordion title="Name validation error">
+    Check that your player name:
+    
+    - Has at least 3 characters
+    - Doesn't exceed 50 characters
+    - Contains only letters and spaces (no numbers or symbols)
+    - Isn't only numbers
+  </Accordion>
+  
+  <Accordion title="Edit/Delete buttons are disabled">
+    These actions require authentication. Log in to your account to enable these features.
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<Tip>
+  **Naming Consistency**: Use full names consistently (e.g., always "Juan Pérez" not sometimes "J. Pérez") to avoid confusion.
+</Tip>
+
+<Tip>
+  **Jersey Numbers**: Follow official soccer conventions - typically goalkeepers use number 1, and numbers 2-11 are for starting players.
+</Tip>
+
+<Tip>
+  **Position Assignment**: Make sure to create all standard positions (Goalkeeper, Defender, Midfielder, Forward) before adding players to ensure accurate team composition.
+</Tip>
+
+## Related Guides
+
+- [Managing Teams](/guides/managing-teams) - Create and manage teams
+- [Scheduling Matches](/guides/scheduling-matches) - Schedule matches with your players
+- [User Roles and Authentication](/guides/user-roles) - Understand access permissions

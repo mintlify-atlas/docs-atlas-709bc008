@@ -1,0 +1,318 @@
+---
+title: "Jugador"
+description: "Player entity representing football players in the tournament system"
+---
+
+## Overview
+
+The `Jugador` (Player) entity represents a football player in the tournament management system. Each player belongs to a team, has a playing position, and wears a unique jersey number within their team.
+
+## Properties
+
+<ParamField path="Id" type="int">
+  Unique identifier for the player.
+</ParamField>
+
+<ParamField path="Nombre" type="string" required>
+  Full name of the player.
+  
+  **Validation Rules:**
+  - Required field (cannot be empty)
+  - Must contain only letters and spaces
+  - Cannot consist of numbers only
+  - Minimum length: 3 characters
+  - Maximum length: 50 characters
+  - Regex pattern: `^(?![0-9]+$)[a-zA-ZÀ-ÿ\s]+$`
+  
+  **Display Name:** "Nombre del Jugador"
+  
+  **Error Messages:**
+  - Pattern mismatch: "Valor Incorrecto. Solo se permiten letras"
+  - Required: "El nombre del Jugador es obligatorio."
+  - Max length: "El nombre del jugador no puede contener más de 50 caracteres"
+  - Min length: "El nombre del jugador no puede contener menos de 3 caracteres"
+</ParamField>
+
+<ParamField path="Numero" type="int" required>
+  Jersey number of the player.
+  
+  **Validation Rules:**
+  - Required field
+  - Must contain only numeric values
+  - Minimum value: 1
+  - Maximum value: 99
+  - Regex pattern: `^(?!a-zA-Z+$)[0-9]+$`
+  
+  **Display Name:** "Número del Jugador"
+  
+  **Error Messages:**
+  - Pattern mismatch: "Valor Incorrecto. Solo se permiten numeros"
+  - Required: "El Número del Jugador es obligatorio."
+  - Range: "El Número del Jugador debe estar en un rango entre 1 y 99"
+</ParamField>
+
+<ParamField path="Equipo" type="Equipo?">
+  The team the player belongs to.
+  
+  **Nullable:** Yes
+  
+  **Relationship:** Many-to-One (Many players belong to one team)
+  
+  **Related Entity:** [Equipo](/api/models/equipo)
+</ParamField>
+
+<ParamField path="Posicion" type="Posicion?">
+  The playing position of the player.
+  
+  **Nullable:** Yes
+  
+  **Relationship:** Many-to-One (Many players can have the same position)
+  
+  **Related Entity:** [Posicion](/api/models/posicion)
+</ParamField>
+
+## Relationships
+
+The `Jugador` entity has two important many-to-one relationships:
+
+### Team (Equipo)
+
+<ResponseField name="Equipo" type="Equipo">
+  Each player belongs to one team. This is a many-to-one relationship where multiple players are associated with a single team.
+  
+  **Navigation Property:** `Equipo`
+  
+  **Related Entity:** [Equipo](/api/models/equipo)
+  
+  **Cardinality:** Many players to one team
+</ResponseField>
+
+### Position (Posicion)
+
+<ResponseField name="Posicion" type="Posicion">
+  Each player has one playing position (e.g., Forward, Midfielder, Defender, Goalkeeper). Multiple players can share the same position.
+  
+  **Navigation Property:** `Posicion`
+  
+  **Related Entity:** [Posicion](/api/models/posicion)
+  
+  **Cardinality:** Many players to one position
+</ResponseField>
+
+## Validation Attributes
+
+The `Jugador` entity uses the following Data Annotations:
+
+- `[Required]` - Ensures name and number are mandatory
+- `[RegularExpression]` - Validates name (letters only) and number (digits only) formats
+- `[MaxLength]` / `[MinLength]` - Enforces name character length constraints
+- `[Range]` - Ensures jersey number is between 1 and 99
+- `[Display]` - Provides user-friendly display names
+- `[DisplayFormat]` - Configures empty string handling
+
+<Note>
+The jersey number validation ensures realistic football jersey numbers (1-99), which is standard in most football leagues.
+</Note>
+
+## Code Examples
+
+### Entity Definition
+
+```csharp
+using System.ComponentModel.DataAnnotations;
+
+namespace Torneo.App.Dominio
+{
+    public class Jugador
+    {
+        public int Id { get; set; }
+
+        [RegularExpression(@"^(?![0-9]+$)[a-zA-ZÀ-ÿ\s]+$", 
+            ErrorMessage = "Valor Incorrecto. Solo se permiten letras")]
+        [Display(Name = "Nombre del Jugador")]
+        [Required(AllowEmptyStrings=false, 
+            ErrorMessage = "El nombre del Jugador es obligatorio.")]             
+        [MaxLength(50, ErrorMessage = "El nombre del jugador no puede contener más de 50 caracteres")]
+        [MinLength(3, ErrorMessage = "El nombre del jugador no puede contener menos de 3 caracteres")] 
+        public string Nombre { get; set; }
+
+        [Display(Name = "Número del Jugador")]
+        [RegularExpression(@"^(?!a-zA-Z+$)[0-9]+$", 
+            ErrorMessage = "Valor Incorrecto. Solo se permiten numeros")]
+        [Required(AllowEmptyStrings=false, 
+            ErrorMessage = "El Número del Jugador es obligatorio.")]       
+        [DisplayFormat(ConvertEmptyStringToNull=false)]
+        [Range(1, 99, ErrorMessage = "El Número del Jugador debe estar en un rango entre 1 y 99")]
+        public int Numero { get; set; }
+        
+        public Equipo? Equipo { get; set; } 
+        public Posicion? Posicion { get; set; } 
+    }
+}
+```
+
+### Creating a Player
+
+```csharp
+var jugador = new Jugador
+{
+    Nombre = "Lionel Messi",
+    Numero = 10,
+    Equipo = equipoBarcelona,
+    Posicion = posicionDelantero
+};
+```
+
+### Creating Multiple Players
+
+```csharp
+var jugadores = new List<Jugador>
+{
+    new Jugador 
+    { 
+        Nombre = "Cristiano Ronaldo", 
+        Numero = 7, 
+        Posicion = posicionDelantero 
+    },
+    new Jugador 
+    { 
+        Nombre = "Sergio Ramos", 
+        Numero = 4, 
+        Posicion = posicionDefensa 
+    },
+    new Jugador 
+    { 
+        Nombre = "Thibaut Courtois", 
+        Numero = 1, 
+        Posicion = posicionPortero 
+    }
+};
+```
+
+### Valid Examples
+
+```csharp
+// Valid player names
+Nombre = "Juan Pérez";
+Nombre = "María José López";
+Nombre = "José Ángel Martínez";
+
+// Valid jersey numbers
+Numero = 1;   // Typically goalkeeper
+Numero = 10;  // Typical star player number
+Numero = 99;  // Maximum allowed
+```
+
+### Invalid Examples
+
+<Warning>
+These examples will fail validation:
+</Warning>
+
+```csharp
+// Invalid player names
+Nombre = "123";              // Contains only numbers
+Nombre = "Player123";        // Contains numbers
+Nombre = "AB";               // Less than 3 characters
+Nombre = "";                 // Empty (required)
+
+// Invalid jersey numbers
+Numero = 0;                  // Below minimum (1)
+Numero = 100;                // Above maximum (99)
+Numero = -5;                 // Negative number
+```
+
+### Querying Players
+
+```csharp
+// Get all players on a team
+var teamPlayers = equipo.Jugadores;
+
+// Get players by position
+var forwards = context.Jugadores
+    .Where(j => j.Posicion.Nombre == "Delantero")
+    .ToList();
+
+// Get player by jersey number within a team
+var player10 = equipo.Jugadores
+    .FirstOrDefault(j => j.Numero == 10);
+
+// Get all goalkeepers across all teams
+var goalkeepers = context.Jugadores
+    .Include(j => j.Posicion)
+    .Where(j => j.Posicion.Nombre == "Portero")
+    .ToList();
+```
+
+### Updating Player Information
+
+```csharp
+// Change player's jersey number
+jugador.Numero = 7;
+
+// Transfer player to different team
+jugador.Equipo = nuevoEquipo;
+
+// Change player position
+jugador.Posicion = nuevaPosicion;
+```
+
+### Jersey Number Uniqueness
+
+<Note>
+While the entity validation ensures numbers are between 1-99, additional business logic may be needed to ensure jersey numbers are unique within a team.
+</Note>
+
+```csharp
+// Example: Checking for unique jersey number within team
+public bool IsNumeroUniqueInTeam(Jugador jugador)
+{
+    return !jugador.Equipo.Jugadores
+        .Any(j => j.Id != jugador.Id && j.Numero == jugador.Numero);
+}
+```
+
+## Common Use Cases
+
+### Squad Management
+
+```csharp
+// Get team roster grouped by position
+var roster = equipo.Jugadores
+    .GroupBy(j => j.Posicion.Nombre)
+    .Select(g => new 
+    { 
+        Posicion = g.Key, 
+        Jugadores = g.ToList() 
+    });
+```
+
+### Player Statistics
+
+```csharp
+// Count players by position
+var playerCountByPosition = context.Jugadores
+    .GroupBy(j => j.Posicion.Nombre)
+    .Select(g => new 
+    { 
+        Posicion = g.Key, 
+        Count = g.Count() 
+    });
+```
+
+## Database Mapping
+
+<Note>
+The `Jugador` entity is mapped to a database table with the same name. The `Id` property serves as the primary key and is auto-generated.
+
+Foreign keys are created for:
+- `Equipo` relationship (EquipoId)
+- `Posicion` relationship (PosicionId)
+</Note>
+
+## Related Entities
+
+- [Equipo](/api/models/equipo) - Team the player belongs to
+- [Posicion](/api/models/posicion) - Player's position on the field
+- [DirectorTecnico](/api/models/director-tecnico) - Team's technical director (indirect)
+- [Municipio](/api/models/municipio) - Municipality of the team (indirect)

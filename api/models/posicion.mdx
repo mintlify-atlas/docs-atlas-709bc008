@@ -1,0 +1,378 @@
+---
+title: "Posicion"
+description: "Position entity representing player positions in football teams"
+---
+
+## Overview
+
+The `Posicion` (Position) entity represents a playing position in the tournament management system. Positions define where players play on the field (e.g., Forward, Midfielder, Defender, Goalkeeper). Multiple players can share the same position across different teams.
+
+## Properties
+
+<ParamField path="Id" type="int">
+  Unique identifier for the position.
+</ParamField>
+
+<ParamField path="Nombre" type="string" required>
+  Name of the position.
+  
+  **Validation Rules:**
+  - Required field (cannot be empty)
+  - Must contain only letters and spaces
+  - Cannot consist of numbers only
+  - Minimum length: 3 characters
+  - Maximum length: 30 characters
+  - Regex pattern: `^(?![0-9]+$)[a-zA-ZÀ-ÿ\s]+$`
+  
+  **Default Value:** Empty string
+  
+  **Display Name:** "Nombre de la posición"
+  
+  **Error Messages:**
+  - Pattern mismatch: "Valor Incorrecto."
+  - Required: "El nombre de la posicion es obligatoria."
+  - Max length: "La posición no puede contener más de 30 caracteres"
+  - Min length: "La posición no puede contener menos de 3 caracteres"
+</ParamField>
+
+<ParamField path="Jugadores" type="List<Jugador>?">
+  Collection of players assigned to this position.
+  
+  **Nullable:** Yes
+  
+  **Default Value:** Empty list
+  
+  **Relationship:** One-to-Many (One position can be assigned to multiple players)
+  
+  **Related Entity:** [Jugador](/api/models/jugador)
+</ParamField>
+
+## Relationships
+
+### Players (Jugadores)
+
+<ResponseField name="Jugadores" type="List<Jugador>">
+  A position can be assigned to multiple players across different teams. This is a one-to-many relationship where the position is the parent entity.
+  
+  **Navigation Property:** `Jugadores`
+  
+  **Cardinality:** One position to many players (0..\*)
+  
+  **Related Entity:** [Jugador](/api/models/jugador)
+  
+  **Business Rule:** Multiple players can have the same position, and a position can exist without any assigned players.
+</ResponseField>
+
+<Note>
+Positions are typically standard across all teams (e.g., Goalkeeper, Defender, Midfielder, Forward), but the same position entity is shared across all players in the tournament.
+</Note>
+
+## Validation Attributes
+
+The `Posicion` entity uses the following Data Annotations:
+
+- `[Required]` - Ensures the position name is mandatory
+- `[RegularExpression]` - Validates name contains only letters and spaces, no numbers only
+- `[MaxLength]` / `[MinLength]` - Enforces character length constraints
+- `[Display]` - Provides user-friendly display name
+
+## Code Examples
+
+### Entity Definition
+
+```csharp
+using System.ComponentModel.DataAnnotations;
+
+namespace Torneo.App.Dominio
+{
+    public class Posicion
+    {
+        public int Id { get; set; }
+
+        [RegularExpression(@"^(?![0-9]+$)[a-zA-ZÀ-ÿ\s]+$", 
+            ErrorMessage = "Valor Incorrecto.")]
+        [Display(Name = "Nombre de la posición")]
+        [Required(AllowEmptyStrings=false, 
+            ErrorMessage = "El nombre de la posicion es obligatoria.")]             
+        [MaxLength(30, ErrorMessage = "La posición no puede contener más de 30 caracteres")]
+        [MinLength(3, ErrorMessage = "La posición no puede contener menos de 3 caracteres")] 
+        public string Nombre { get; set; } = new string("");
+        
+        public List<Jugador>? Jugadores { get; set; } = new List<Jugador>();
+    }
+}
+```
+
+### Creating Positions
+
+```csharp
+var posiciones = new List<Posicion>
+{
+    new Posicion { Nombre = "Portero" },
+    new Posicion { Nombre = "Defensa" },
+    new Posicion { Nombre = "Mediocampista" },
+    new Posicion { Nombre = "Delantero" }
+};
+```
+
+### Common Football Positions (Spanish)
+
+```csharp
+// Standard positions in Spanish
+var portero = new Posicion { Nombre = "Portero" };                    // Goalkeeper
+var defensaCentral = new Posicion { Nombre = "Defensa Central" };      // Center Back
+var lateral = new Posicion { Nombre = "Lateral" };                     // Full Back
+var medioCentro = new Posicion { Nombre = "Medio Centro" };            // Central Midfielder
+var extremo = new Posicion { Nombre = "Extremo" };                     // Winger
+var delantero = new Posicion { Nombre = "Delantero" };                 // Forward
+var delanterocentro = new Posicion { Nombre = "Delantero Centro" };    // Striker
+```
+
+### Valid Name Examples
+
+```csharp
+// Valid position names
+Nombre = "Portero";
+Nombre = "Defensa Central";
+Nombre = "Mediocampista";
+Nombre = "Extremo Derecho";
+Nombre = "Líbero";
+Nombre = "Volante de Contención";
+```
+
+### Invalid Name Examples
+
+<Warning>
+These examples will fail validation:
+</Warning>
+
+```csharp
+// Invalid position names
+Nombre = "123";              // Only numbers
+Nombre = "Position 1";       // Contains numbers
+Nombre = "AB";               // Less than 3 characters
+Nombre = "";                 // Empty (required)
+Nombre = "A".PadRight(31);   // More than 30 characters
+```
+
+### Querying Positions
+
+```csharp
+// Get all positions
+var allPositions = context.Posiciones.ToList();
+
+// Get positions with player count
+var positionsWithCount = context.Posiciones
+    .Select(p => new 
+    { 
+        Posicion = p.Nombre, 
+        NumeroJugadores = p.Jugadores.Count 
+    })
+    .ToList();
+
+// Get position by name
+var delantero = context.Posiciones
+    .FirstOrDefault(p => p.Nombre == "Delantero");
+
+// Get all players in a specific position
+var porteros = context.Posiciones
+    .Include(p => p.Jugadores)
+    .FirstOrDefault(p => p.Nombre == "Portero")
+    ?.Jugadores;
+```
+
+### Assigning Positions to Players
+
+```csharp
+// Assign position when creating player
+var jugador = new Jugador
+{
+    Nombre = "Lionel Messi",
+    Numero = 10,
+    Posicion = posicionDelantero
+};
+
+// Change player position
+jugador.Posicion = nuevaPosicion;
+```
+
+### Position Statistics
+
+```csharp
+// Count players per position
+var playersByPosition = context.Posiciones
+    .Select(p => new
+    {
+        Posicion = p.Nombre,
+        TotalJugadores = p.Jugadores.Count,
+        Equipos = p.Jugadores.Select(j => j.Equipo.Nombre).Distinct().Count()
+    })
+    .OrderByDescending(x => x.TotalJugadores)
+    .ToList();
+
+// Get most popular position
+var mostPopularPosition = context.Posiciones
+    .OrderByDescending(p => p.Jugadores.Count)
+    .FirstOrDefault();
+
+// Get positions with no players
+var unusedPositions = context.Posiciones
+    .Where(p => !p.Jugadores.Any())
+    .ToList();
+```
+
+### Position-Based Team Analysis
+
+```csharp
+// Get all forwards in tournament
+var allForwards = context.Jugadores
+    .Include(j => j.Posicion)
+    .Include(j => j.Equipo)
+    .Where(j => j.Posicion.Nombre == "Delantero")
+    .ToList();
+
+// Get team composition by position
+var teamComposition = equipo.Jugadores
+    .GroupBy(j => j.Posicion.Nombre)
+    .Select(g => new
+    {
+        Posicion = g.Key,
+        Count = g.Count(),
+        Players = g.Select(j => j.Nombre).ToList()
+    })
+    .ToList();
+```
+
+### Formation Analysis
+
+```csharp
+// Analyze team formation (e.g., 4-4-2)
+public string GetTeamFormation(Equipo equipo)
+{
+    var defenders = equipo.Jugadores.Count(j => j.Posicion?.Nombre.Contains("Defensa") == true);
+    var midfielders = equipo.Jugadores.Count(j => j.Posicion?.Nombre.Contains("Medio") == true);
+    var forwards = equipo.Jugadores.Count(j => j.Posicion?.Nombre.Contains("Delantero") == true);
+    
+    return $"{defenders}-{midfielders}-{forwards}";
+}
+```
+
+### Position Management
+
+```csharp
+// Initialize standard positions for new tournament
+public void InitializeStandardPositions()
+{
+    var standardPositions = new[]
+    {
+        "Portero",
+        "Defensa Central",
+        "Lateral Derecho",
+        "Lateral Izquierdo",
+        "Pivote",
+        "Mediocampista",
+        "Extremo Derecho",
+        "Extremo Izquierdo",
+        "Media Punta",
+        "Delantero Centro"
+    };
+    
+    foreach (var nombre in standardPositions)
+    {
+        if (!context.Posiciones.Any(p => p.Nombre == nombre))
+        {
+            context.Posiciones.Add(new Posicion { Nombre = nombre });
+        }
+    }
+    
+    context.SaveChanges();
+}
+```
+
+## Common Use Cases
+
+### Squad Balance Checking
+
+```csharp
+// Check if team has balanced squad
+public bool HasBalancedSquad(Equipo equipo)
+{
+    var hasGoalkeeper = equipo.Jugadores.Any(j => j.Posicion?.Nombre == "Portero");
+    var defenderCount = equipo.Jugadores.Count(j => j.Posicion?.Nombre.Contains("Defensa") == true);
+    var midfielderCount = equipo.Jugadores.Count(j => j.Posicion?.Nombre.Contains("Medio") == true);
+    var forwardCount = equipo.Jugadores.Count(j => j.Posicion?.Nombre.Contains("Delantero") == true);
+    
+    return hasGoalkeeper && defenderCount >= 2 && midfielderCount >= 2 && forwardCount >= 1;
+}
+```
+
+### Position Conversion Report
+
+```csharp
+// Track players who changed positions
+public class PositionChange
+{
+    public string PlayerName { get; set; }
+    public string OldPosition { get; set; }
+    public string NewPosition { get; set; }
+    public DateTime ChangeDate { get; set; }
+}
+```
+
+## Business Rules
+
+### Position Standards
+
+<Note>
+Common business rules for positions:
+- Positions should be standardized across the tournament
+- Consider creating positions during system initialization
+- Validate that teams have at least one goalkeeper
+- Enforce minimum players per position for match eligibility
+</Note>
+
+### Position Naming
+
+<Note>
+Best practices:
+- Use consistent Spanish terminology
+- Avoid abbreviations in position names
+- Consider regional variations (e.g., "Arquero" vs "Portero")
+- Document position definitions for clarity
+</Note>
+
+## Standard Football Positions
+
+### Defensive Positions
+- **Portero / Arquero** - Goalkeeper
+- **Defensa Central** - Center Back
+- **Lateral Derecho** - Right Back
+- **Lateral Izquierdo** - Left Back
+- **Líbero** - Sweeper
+
+### Midfield Positions
+- **Pivote / Volante de Contención** - Defensive Midfielder
+- **Mediocampista / Medio Centro** - Central Midfielder
+- **Extremo Derecho** - Right Winger
+- **Extremo Izquierdo** - Left Winger
+- **Media Punta** - Attacking Midfielder
+
+### Forward Positions
+- **Delantero Centro** - Striker/Center Forward
+- **Segundo Delantero** - Second Striker
+- **Extremo** - Forward/Winger
+
+## Database Mapping
+
+<Note>
+The `Posicion` entity is mapped to a database table with the same name. The `Id` property serves as the primary key and is auto-generated.
+
+The relationship with `Jugador` is established through a foreign key in the Jugador table pointing to the Posicion's Id.
+</Note>
+
+## Related Entities
+
+- [Jugador](/api/models/jugador) - Players assigned to this position
+- [Equipo](/api/models/equipo) - Teams that have players in this position (indirect)
+- [DirectorTecnico](/api/models/director-tecnico) - Technical directors managing players (indirect)
+- [Partido](/api/models/partido) - Matches where players with this position participate (indirect)

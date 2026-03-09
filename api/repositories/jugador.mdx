@@ -1,0 +1,560 @@
+---
+title: 'Jugador Repository'
+description: 'Repository for managing player (Jugador) entities with team and position associations'
+---
+
+## Overview
+
+The `IRepositorioJugador` interface and `RepositorioJugador` implementation provide data access operations for managing players. Each player is associated with a team (Equipo) and a position (Posicion).
+
+## Interface Definition
+
+```csharp IRepositorioJugador.cs
+using Torneo.App.Dominio;
+
+namespace Torneo.App.Persistencia
+{
+    public interface IRepositorioJugador
+    {
+        public Jugador AddJugador(Jugador jugador, int idEquipo, int idPosicion);
+        public IEnumerable<Jugador> GetAllJugadores();
+        public Jugador GetJugador(int idJugador);
+        public Jugador UpdateJugador(Jugador jugador, int idEquipo, int idPosicion);
+        public Jugador DeleteJugador(int idJugador);
+        public bool validateDuplicates(Jugador jugador, int idEquipo, int idPosicion);
+    }
+}
+```
+
+## Implementation
+
+```csharp RepositorioJugador.cs
+using Microsoft.EntityFrameworkCore;
+using Torneo.App.Dominio;
+
+namespace Torneo.App.Persistencia
+{
+    public class RepositorioJugador : IRepositorioJugador
+    {
+        private DataContext _dataContext = new DataContext();
+        
+        // Implementation methods...
+    }
+}
+```
+
+## Methods Reference
+
+### AddJugador
+
+Adds a new player to the database with associations to team and position.
+
+<ParamField path="jugador" type="Jugador" required>
+  The Jugador entity to add
+</ParamField>
+
+<ParamField path="idEquipo" type="int" required>
+  The ID of the team the player belongs to
+</ParamField>
+
+<ParamField path="idPosicion" type="int" required>
+  The ID of the player's position
+</ParamField>
+
+<ResponseField name="return" type="Jugador">
+  The inserted Jugador entity with its generated ID and populated relationships
+</ResponseField>
+
+```csharp Implementation (Lines 8-17)
+public Jugador AddJugador(Jugador jugador, int idEquipo, int idPosicion)
+{
+    var equipoEncontrado = _dataContext.Equipos.Find(idEquipo);
+    var posicionEncontrada = _dataContext.Posiciones.Find(idPosicion);
+    jugador.Equipo = equipoEncontrado == null ? null : equipoEncontrado;
+    jugador.Posicion = posicionEncontrada == null ? null : posicionEncontrada;
+    var jugadorInsertado = _dataContext.Jugadores.Add(jugador);
+    _dataContext.SaveChanges();
+    return jugadorInsertado.Entity;
+}
+```
+
+**Key Features:**
+- Validates team and position exist before association
+- Sets relationships to `null` if referenced entities don't exist
+- Returns complete entity with relationships
+
+**Usage Example:**
+
+```csharp
+var nuevoJugador = new Jugador
+{
+    Nombre = "Carlos Rodríguez",
+    Numero = 10
+};
+
+var jugadorCreado = repositorioJugador.AddJugador(
+    nuevoJugador,
+    idEquipo: 5,
+    idPosicion: 3  // Delantero
+);
+
+Console.WriteLine($"Jugador creado: {jugadorCreado.Nombre} #{jugadorCreado.Numero}");
+Console.WriteLine($"Equipo: {jugadorCreado.Equipo?.Nombre}");
+Console.WriteLine($"Posición: {jugadorCreado.Posicion?.Nombre}");
+```
+
+---
+
+### GetAllJugadores
+
+Retrieves all players with their team and position relationships.
+
+<ResponseField name="return" type="IEnumerable<Jugador>">
+  Collection of all Jugador entities with eagerly loaded Equipo and Posicion
+</ResponseField>
+
+```csharp Implementation (Lines 18-28)
+public IEnumerable<Jugador> GetAllJugadores()
+{
+    var jugadores = _dataContext.Jugadores
+                    .Include(j => j.Equipo)
+                    .Include(j => j.Posicion)
+                    .AsNoTracking()
+                    .ToList();
+    
+    return jugadores;
+}
+```
+
+**Included Relationships:**
+- `Equipo` - The player's team
+- `Posicion` - The player's position (e.g., Delantero, Defensa, etc.)
+
+**Usage Example:**
+
+```csharp
+var todosJugadores = repositorioJugador.GetAllJugadores();
+
+foreach (var jugador in todosJugadores)
+{
+    Console.WriteLine($"#{jugador.Numero} {jugador.Nombre}");
+    Console.WriteLine($"  Equipo: {jugador.Equipo?.Nombre}");
+    Console.WriteLine($"  Posición: {jugador.Posicion?.Nombre}");
+    Console.WriteLine();
+}
+```
+
+---
+
+### GetJugador
+
+Retrieves a specific player by ID with team and position relationships.
+
+<ParamField path="idJugador" type="int" required>
+  The ID of the player to retrieve
+</ParamField>
+
+<ResponseField name="return" type="Jugador">
+  The Jugador entity with Equipo and Posicion loaded, or null if not found
+</ResponseField>
+
+```csharp Implementation (Lines 30-38)
+public Jugador GetJugador(int idJugador)
+{
+    var jugadorEncontrado = _dataContext.Jugadores
+                           .Include(j => j.Equipo)
+                           .Include(j => j.Posicion)
+                           .FirstOrDefault(j => j.Id == idJugador);
+    
+    return jugadorEncontrado;
+}
+```
+
+**Usage Example:**
+
+```csharp
+var jugador = repositorioJugador.GetJugador(15);
+
+if (jugador != null)
+{
+    Console.WriteLine($"Jugador: {jugador.Nombre}");
+    Console.WriteLine($"Número: {jugador.Numero}");
+    Console.WriteLine($"Equipo: {jugador.Equipo?.Nombre}");
+    Console.WriteLine($"Posición: {jugador.Posicion?.Nombre}");
+}
+else
+{
+    Console.WriteLine("Jugador no encontrado");
+}
+```
+
+---
+
+### UpdateJugador
+
+Updates an existing player's information and relationships.
+
+<ParamField path="jugador" type="Jugador" required>
+  The Jugador entity with updated values (must include valid Id)
+</ParamField>
+
+<ParamField path="idEquipo" type="int" required>
+  The ID of the new or existing team
+</ParamField>
+
+<ParamField path="idPosicion" type="int" required>
+  The ID of the new or existing position
+</ParamField>
+
+<ResponseField name="return" type="Jugador">
+  The updated Jugador entity with current relationships
+</ResponseField>
+
+```csharp Implementation (Lines 40-52)
+public Jugador UpdateJugador(Jugador jugador, int idEquipo, int idPosicion)
+{
+    var jugadorEncontrado = GetJugador(jugador.Id);
+    var equipoEncontrado = _dataContext.Equipos.Find(idEquipo);
+    var posicionEncontrada= _dataContext.Posiciones.Find(idPosicion);
+    jugadorEncontrado.Nombre = jugador.Nombre;
+    jugadorEncontrado.Numero = jugador.Numero;
+    jugadorEncontrado.Equipo = equipoEncontrado == null ? null : equipoEncontrado;
+    jugadorEncontrado.Posicion = posicionEncontrada == null ? null : posicionEncontrada;
+    _dataContext.SaveChanges();
+    
+    return jugadorEncontrado;
+}
+```
+
+**Updated Properties:**
+- `Nombre` - Player name
+- `Numero` - Jersey number
+- `Equipo` - Associated team
+- `Posicion` - Player position
+
+**Usage Example:**
+
+```csharp
+var jugador = repositorioJugador.GetJugador(15);
+if (jugador != null)
+{
+    jugador.Numero = 7;  // Change jersey number
+    jugador.Nombre = "Carlos Alberto Rodríguez";
+    
+    var jugadorActualizado = repositorioJugador.UpdateJugador(
+        jugador,
+        idEquipo: 5,      // Same team
+        idPosicion: 2     // New position: Mediocampista
+    );
+    
+    Console.WriteLine($"Jugador actualizado: {jugadorActualizado.Nombre} #{jugadorActualizado.Numero}");
+    Console.WriteLine($"Nueva posición: {jugadorActualizado.Posicion?.Nombre}");
+}
+```
+
+---
+
+### DeleteJugador
+
+Deletes a player from the database.
+
+<ParamField path="idJugador" type="int" required>
+  The ID of the player to delete
+</ParamField>
+
+<ResponseField name="return" type="Jugador">
+  The deleted Jugador entity
+</ResponseField>
+
+<ResponseField name="exception" type="Exception">
+  Throws exception with message "Jugador not found" if the ID doesn't exist
+</ResponseField>
+
+```csharp Implementation (Lines 54-65)
+public Jugador DeleteJugador(int idJugador)
+{
+    var jugadorEncontrado = _dataContext.Jugadores.Find(idJugador);
+    if (jugadorEncontrado != null)
+    {
+        _dataContext.Jugadores.Remove(jugadorEncontrado);
+        _dataContext.SaveChanges();
+    }
+    else
+    {
+        Console.WriteLine("No se encontró el Jugador");
+    }
+    return jugadorEncontrado ?? throw new Exception("Jugador not found");
+}
+```
+
+**Usage Example:**
+
+```csharp
+try
+{
+    var jugadorEliminado = repositorioJugador.DeleteJugador(15);
+    Console.WriteLine($"Jugador eliminado: {jugadorEliminado.Nombre}");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Error: {ex.Message}");
+}
+```
+
+---
+
+### validateDuplicates
+
+Validates whether a player with the same name, number, team, and position already exists.
+
+<ParamField path="jugador" type="Jugador" required>
+  The Jugador entity to validate
+</ParamField>
+
+<ParamField path="idEquipo" type="int" required>
+  The team ID to check against
+</ParamField>
+
+<ParamField path="idPosicion" type="int" required>
+  The position ID to check against
+</ParamField>
+
+<ResponseField name="return" type="bool">
+  `true` if a duplicate player exists (different ID but same name, number, team, and position), `false` otherwise
+</ResponseField>
+
+```csharp Implementation (Lines 67-90)
+public bool validateDuplicates(Jugador jugador, int idEquipo, int idPosicion)
+{
+    try
+    {
+        IEnumerable<Jugador> allJugadores = GetAllJugadores();
+        bool duplicado = false;
+        
+        foreach(Jugador j in allJugadores)
+        {
+            if(jugador.Id != j.Id)
+            {
+                if(j.Nombre.ToLower() == jugador.Nombre.ToLower().Trim() 
+                   && j.Numero == jugador.Numero 
+                   && j.Equipo.Id == idEquipo 
+                   && j.Posicion.Id == idPosicion)
+                {
+                    duplicado = true;
+                }
+            }
+        }
+        
+        Console.WriteLine("Jugador duplicado al Crear/Editar " + jugador.Nombre + " - " + duplicado);
+        return duplicado;
+    }
+    catch(Exception e)
+    {
+        Console.WriteLine("Error Validacion " + e.Message);
+        return false;
+    }
+}
+```
+
+**Validation Logic:**
+1. Case-insensitive name comparison
+2. Exact number match
+3. Same team ID
+4. Same position ID
+5. Excludes current player when updating (checks `jugador.Id != j.Id`)
+
+**Usage Example:**
+
+```csharp
+var nuevoJugador = new Jugador
+{
+    Nombre = "Carlos Rodríguez",
+    Numero = 10
+};
+
+if (repositorioJugador.validateDuplicates(nuevoJugador, idEquipo: 5, idPosicion: 3))
+{
+    Console.WriteLine("Error: Ya existe un jugador con el mismo nombre, número, equipo y posición");
+}
+else
+{
+    repositorioJugador.AddJugador(nuevoJugador, idEquipo: 5, idPosicion: 3);
+    Console.WriteLine("Jugador creado exitosamente");
+}
+```
+
+<Note>
+The duplicate validation checks ALL four fields (name, number, team, position). A player can have the same name or number if they play in a different team or position.
+</Note>
+
+## Dependency Injection
+
+Register the repository in `Program.cs`:
+
+```csharp Program.cs (Line 21)
+builder.Services.AddSingleton<IRepositorioJugador, RepositorioJugador>();
+```
+
+Inject into controllers:
+
+```csharp
+public class JugadorController : Controller
+{
+    private readonly IRepositorioJugador _repositorioJugador;
+    private readonly IRepositorioEquipo _repositorioEquipo;
+    private readonly IRepositorioPosicion _repositorioPosicion;
+    
+    public JugadorController(
+        IRepositorioJugador repositorioJugador,
+        IRepositorioEquipo repositorioEquipo,
+        IRepositorioPosicion repositorioPosicion)
+    {
+        _repositorioJugador = repositorioJugador;
+        _repositorioEquipo = repositorioEquipo;
+        _repositorioPosicion = repositorioPosicion;
+    }
+}
+```
+
+## Common Workflows
+
+<AccordionGroup>
+  <Accordion title="Adding a Player to a Team">
+    ```csharp
+    // 1. Create player entity
+    var jugador = new Jugador
+    {
+        Nombre = "Carlos Rodríguez",
+        Numero = 10
+    };
+    
+    // 2. Validate duplicates
+    int equipoId = 5;
+    int posicionId = 3; // Delantero
+    
+    if (!repositorioJugador.validateDuplicates(jugador, equipoId, posicionId))
+    {
+        // 3. Add player
+        var resultado = repositorioJugador.AddJugador(jugador, equipoId, posicionId);
+        Console.WriteLine($"Jugador {resultado.Nombre} #{resultado.Numero} agregado al equipo");
+    }
+    else
+    {
+        Console.WriteLine("Ya existe un jugador con estos datos");
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Transferring a Player to Another Team">
+    ```csharp
+    // 1. Get player
+    var jugador = repositorioJugador.GetJugador(15);
+    
+    if (jugador != null)
+    {
+        int nuevoEquipoId = 8;
+        int posicionActual = jugador.Posicion.Id;
+        
+        // 2. Validate transfer
+        if (!repositorioJugador.validateDuplicates(jugador, nuevoEquipoId, posicionActual))
+        {
+            // 3. Update team
+            var jugadorTransferido = repositorioJugador.UpdateJugador(
+                jugador,
+                idEquipo: nuevoEquipoId,
+                idPosicion: posicionActual
+            );
+            
+            Console.WriteLine($"{jugador.Nombre} transferido a {jugadorTransferido.Equipo?.Nombre}");
+        }
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Listing Players by Position">
+    ```csharp
+    var todosJugadores = repositorioJugador.GetAllJugadores();
+    
+    // Group by position
+    var jugadoresPorPosicion = todosJugadores
+        .GroupBy(j => j.Posicion?.Nombre)
+        .OrderBy(g => g.Key);
+    
+    foreach (var grupo in jugadoresPorPosicion)
+    {
+        Console.WriteLine($"\n{grupo.Key}:");
+        foreach (var jugador in grupo.OrderBy(j => j.Numero))
+        {
+            Console.WriteLine($"  #{jugador.Numero} {jugador.Nombre} - {jugador.Equipo?.Nombre}");
+        }
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Finding Players by Team">
+    ```csharp
+    var todosJugadores = repositorioJugador.GetAllJugadores();
+    
+    // Filter by team
+    int equipoId = 5;
+    var jugadoresEquipo = todosJugadores
+        .Where(j => j.Equipo?.Id == equipoId)
+        .OrderBy(j => j.Numero)
+        .ToList();
+    
+    Console.WriteLine($"Jugadores del equipo (Total: {jugadoresEquipo.Count}):");
+    foreach (var jugador in jugadoresEquipo)
+    {
+        Console.WriteLine($"#{jugador.Numero} {jugador.Nombre} - {jugador.Posicion?.Nombre}");
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Related Entities
+
+<CardGroup cols={3}>
+  <Card title="Jugador Entity" icon="running" href="/api/entities/jugador">
+    Domain model for players
+  </Card>
+  <Card title="Equipo Repository" icon="shield" href="/api/repositories/equipo">
+    Team data access
+  </Card>
+  <Card title="Posicion Repository" icon="map-pin" href="/api/repositories/posicion">
+    Position data access
+  </Card>
+</CardGroup>
+
+## Business Rules
+
+<Warning>
+**Unique Player Constraint:**
+
+A player is considered unique by the combination of:
+- Name (case-insensitive)
+- Jersey number
+- Team
+- Position
+
+This means:
+- Same player can have different numbers in different teams
+- Same number can be used by different players in different teams
+- Same player can play different positions in different teams
+</Warning>
+
+## Error Handling
+
+<Note>
+The `DeleteJugador` method throws an exception when the player is not found. Always handle this exception:
+
+```csharp
+try
+{
+    var resultado = repositorioJugador.DeleteJugador(15);
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Error: {ex.Message}");
+}
+```
+</Note>

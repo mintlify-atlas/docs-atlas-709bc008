@@ -1,0 +1,545 @@
+---
+title: 'Municipio Repository'
+description: 'Repository for managing municipality (Municipio) entities'
+---
+
+## Overview
+
+The `IRepositorioMunicipio` interface and `RepositorioMunicipio` implementation provide data access operations for managing municipalities. Municipalities are associated with teams (Equipos) in the system.
+
+## Interface Definition
+
+```csharp IRepositorioMunicipio.cs
+using Torneo.App.Dominio;
+
+namespace Torneo.App.Persistencia
+{
+    public interface IRepositorioMunicipio
+    {
+        public Municipio AddMunicipio(Municipio municipio);
+        public IEnumerable<Municipio> GetAllMunicipios();
+        public Municipio GetMunicipio(int idMunicipio);
+        public Municipio UpdateMunicipio(Municipio municipio);
+        public Municipio DeleteMunicipio(int idMunicipio);
+        public bool validateDuplicates(Municipio nombreMunicipio);
+    }
+}
+```
+
+## Implementation
+
+```csharp RepositorioMunicipio.cs
+using Microsoft.EntityFrameworkCore;
+using Torneo.App.Dominio;
+
+namespace Torneo.App.Persistencia
+{
+    public class RepositorioMunicipio : IRepositorioMunicipio
+    {
+        private DataContext _dataContext = new DataContext();
+        
+        // Implementation methods...
+    }
+}
+```
+
+## Methods Reference
+
+### AddMunicipio
+
+Adds a new municipality to the database.
+
+<ParamField path="municipio" type="Municipio" required>
+  The Municipio entity to add
+</ParamField>
+
+<ResponseField name="return" type="Municipio">
+  The inserted Municipio entity with its generated ID
+</ResponseField>
+
+```csharp Implementation (Lines 8-13)
+public Municipio AddMunicipio(Municipio municipio)
+{
+    var municipioInsertado = _dataContext.Municipios.Add(municipio);
+    _dataContext.SaveChanges();
+    return municipioInsertado.Entity;
+}
+```
+
+**Usage Example:**
+
+```csharp
+var nuevoMunicipio = new Municipio
+{
+    Nombre = "Medellín"
+};
+
+var municipioCreado = repositorioMunicipio.AddMunicipio(nuevoMunicipio);
+Console.WriteLine($"Municipio creado: {municipioCreado.Nombre} (ID: {municipioCreado.Id})");
+```
+
+---
+
+### GetAllMunicipios
+
+Retrieves all municipalities with their associated teams.
+
+<ResponseField name="return" type="IEnumerable<Municipio>">
+  Collection of all Municipio entities with eagerly loaded Equipos
+</ResponseField>
+
+```csharp Implementation (Lines 14-26)
+public IEnumerable<Municipio> GetAllMunicipios()
+{
+    var municipios = _dataContext.Municipios
+        .Include(m => m.Equipos)
+        .AsNoTracking()
+        .ToList();
+    
+    return municipios;
+}
+```
+
+**Key Features:**
+- Uses `.Include(m => m.Equipos)` to eagerly load teams
+- Uses `.AsNoTracking()` for improved read performance
+- Returns complete object graph including teams
+
+**Usage Example:**
+
+```csharp
+var todosMunicipios = repositorioMunicipio.GetAllMunicipios();
+
+foreach (var municipio in todosMunicipios)
+{
+    Console.WriteLine($"Municipio: {municipio.Nombre}");
+    Console.WriteLine($"  Equipos: {municipio.Equipos.Count()}");
+    
+    foreach (var equipo in municipio.Equipos)
+    {
+        Console.WriteLine($"    - {equipo.Nombre}");
+    }
+}
+```
+
+---
+
+### GetMunicipio
+
+Retrieves a specific municipality by ID.
+
+<ParamField path="idMunicipio" type="int" required>
+  The ID of the municipality to retrieve
+</ParamField>
+
+<ResponseField name="return" type="Municipio">
+  The Municipio entity, or null if not found
+</ResponseField>
+
+```csharp Implementation (Lines 27-31)
+public Municipio GetMunicipio(int idMunicipio)
+{
+    var municipioEncontrado = _dataContext.Municipios.Find(idMunicipio);
+    return municipioEncontrado == null ? null : municipioEncontrado;
+}
+```
+
+**Usage Example:**
+
+```csharp
+var municipio = repositorioMunicipio.GetMunicipio(5);
+
+if (municipio != null)
+{
+    Console.WriteLine($"Municipio encontrado: {municipio.Nombre}");
+}
+else
+{
+    Console.WriteLine("Municipio no encontrado");
+}
+```
+
+---
+
+### UpdateMunicipio
+
+Updates an existing municipality's information.
+
+<ParamField path="municipio" type="Municipio" required>
+  The Municipio entity with updated values (must include valid Id)
+</ParamField>
+
+<ResponseField name="return" type="Municipio">
+  The updated Municipio entity
+</ResponseField>
+
+<ResponseField name="exception" type="Exception">
+  Throws exception with message "Municipio not found" if the ID doesn't exist
+</ResponseField>
+
+```csharp Implementation (Lines 32-44)
+public Municipio UpdateMunicipio(Municipio municipio)
+{
+    var municipioEncontrado = _dataContext.Municipios.Find(municipio.Id);
+    if (municipioEncontrado != null)
+    {
+        municipioEncontrado.Nombre = municipio.Nombre;
+        _dataContext.SaveChanges();
+    }
+    else
+    {
+        Console.WriteLine("No se encontró el municipio");
+    }
+    return municipioEncontrado ?? throw new Exception("Municipio not found");
+}
+```
+
+**Updated Properties:**
+- `Nombre` - Municipality name
+
+**Usage Example:**
+
+```csharp
+var municipio = repositorioMunicipio.GetMunicipio(5);
+if (municipio != null)
+{
+    municipio.Nombre = "Medellín - Antioquia";
+    
+    try
+    {
+        var municipioActualizado = repositorioMunicipio.UpdateMunicipio(municipio);
+        Console.WriteLine($"Municipio actualizado: {municipioActualizado.Nombre}");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error: {ex.Message}");
+    }
+}
+```
+
+---
+
+### DeleteMunicipio
+
+Deletes a municipality from the database.
+
+<ParamField path="idMunicipio" type="int" required>
+  The ID of the municipality to delete
+</ParamField>
+
+<ResponseField name="return" type="Municipio">
+  The deleted Municipio entity
+</ResponseField>
+
+<ResponseField name="exception" type="Exception">
+  Throws exception with message "Municipio not found" if the ID doesn't exist
+</ResponseField>
+
+```csharp Implementation (Lines 45-57)
+public Municipio DeleteMunicipio(int idMunicipio)
+{
+    var municipioEncontrado = _dataContext.Municipios.Find(idMunicipio);
+    if (municipioEncontrado != null)
+    {
+        _dataContext.Municipios.Remove(municipioEncontrado);
+        _dataContext.SaveChanges();
+    }
+    else
+    {
+        Console.WriteLine("No se encontró el municipio");
+    }
+    return municipioEncontrado ?? throw new Exception("Municipio not found");
+}
+```
+
+<Warning>
+Deleting a municipality will fail if it has associated teams due to foreign key constraints configured with `DeleteBehavior.Restrict`. Remove all teams from the municipality before deleting.
+</Warning>
+
+**Usage Example:**
+
+```csharp
+try
+{
+    var municipioEliminado = repositorioMunicipio.DeleteMunicipio(5);
+    Console.WriteLine($"Municipio eliminado: {municipioEliminado.Nombre}");
+}
+catch (DbUpdateException)
+{
+    Console.WriteLine("No se puede eliminar: el municipio tiene equipos asociados");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Error: {ex.Message}");
+}
+```
+
+---
+
+### validateDuplicates
+
+Validates whether a municipality name already exists in the database.
+
+<ParamField path="municipioIngresado" type="Municipio" required>
+  The Municipio entity to validate
+</ParamField>
+
+<ResponseField name="return" type="bool">
+  `true` if a duplicate municipality name exists (different ID with same name), `false` otherwise
+</ResponseField>
+
+```csharp Implementation (Lines 59-86)
+public bool validateDuplicates(Municipio municipioIngresado)
+{
+    try
+    {
+        IEnumerable<Municipio> allMunucipios = GetAllMunicipios();
+        bool duplicado = false;
+        
+        foreach(Municipio municipio in allMunucipios)
+        {
+            if(municipio.Id != municipioIngresado.Id)
+            {
+                if(municipio.Nombre.ToLower() == municipioIngresado.Nombre.ToLower().Trim())
+                {
+                    duplicado = true;
+                    break;
+                }
+            }
+        }
+        
+        Console.WriteLine("Municipio duplicado al Crear/Editar " + municipioIngresado.Nombre + " - " + duplicado);
+        return duplicado;
+    }
+    catch(Exception e)
+    {
+        Console.WriteLine("Error Validacion " + e.Message);
+        return false;
+    }
+}
+```
+
+**Validation Logic:**
+1. Case-insensitive comparison using `.ToLower()`
+2. Trims whitespace from input
+3. Excludes current municipality when updating (checks `municipio.Id != municipioIngresado.Id`)
+4. Returns `false` on any exception
+
+**Usage Example:**
+
+```csharp
+var nuevoMunicipio = new Municipio
+{
+    Nombre = "Medellín"
+};
+
+if (repositorioMunicipio.validateDuplicates(nuevoMunicipio))
+{
+    Console.WriteLine("Error: Ya existe un municipio con este nombre");
+}
+else
+{
+    repositorioMunicipio.AddMunicipio(nuevoMunicipio);
+    Console.WriteLine("Municipio creado exitosamente");
+}
+```
+
+## Dependency Injection
+
+Register the repository in `Program.cs`:
+
+```csharp Program.cs (Line 16)
+builder.Services.AddSingleton<IRepositorioMunicipio, RepositorioMunicipio>();
+```
+
+Inject into controllers:
+
+```csharp
+public class MunicipioController : Controller
+{
+    private readonly IRepositorioMunicipio _repositorioMunicipio;
+    
+    public MunicipioController(IRepositorioMunicipio repositorioMunicipio)
+    {
+        _repositorioMunicipio = repositorioMunicipio;
+    }
+}
+```
+
+## Common Workflows
+
+<AccordionGroup>
+  <Accordion title="Creating a Municipality">
+    ```csharp
+    // 1. Create entity
+    var municipio = new Municipio
+    {
+        Nombre = "Medellín"
+    };
+    
+    // 2. Validate duplicates
+    if (!repositorioMunicipio.validateDuplicates(municipio))
+    {
+        // 3. Add to database
+        var resultado = repositorioMunicipio.AddMunicipio(municipio);
+        Console.WriteLine($"Municipio creado con ID: {resultado.Id}");
+    }
+    else
+    {
+        Console.WriteLine("Ya existe un municipio con este nombre");
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Updating a Municipality">
+    ```csharp
+    // 1. Get existing entity
+    var municipio = repositorioMunicipio.GetMunicipio(5);
+    
+    if (municipio != null)
+    {
+        // 2. Modify properties
+        municipio.Nombre = "Medellín - Antioquia";
+        
+        // 3. Validate duplicates
+        if (!repositorioMunicipio.validateDuplicates(municipio))
+        {
+            // 4. Update
+            try
+            {
+                var resultado = repositorioMunicipio.UpdateMunicipio(municipio);
+                Console.WriteLine($"Actualizado: {resultado.Nombre}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+            }
+        }
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Listing Municipalities with Team Counts">
+    ```csharp
+    var todosMunicipios = repositorioMunicipio.GetAllMunicipios();
+    
+    Console.WriteLine("Municipios y sus equipos:");
+    Console.WriteLine("=========================\n");
+    
+    foreach (var municipio in todosMunicipios.OrderBy(m => m.Nombre))
+    {
+        Console.WriteLine($"{municipio.Nombre}");
+        Console.WriteLine($"  Total equipos: {municipio.Equipos.Count()}");
+        
+        if (municipio.Equipos.Any())
+        {
+            Console.WriteLine("  Equipos:");
+            foreach (var equipo in municipio.Equipos)
+            {
+                Console.WriteLine($"    - {equipo.Nombre}");
+            }
+        }
+        Console.WriteLine();
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Finding Municipalities Without Teams">
+    ```csharp
+    var todosMunicipios = repositorioMunicipio.GetAllMunicipios();
+    
+    var municipiosSinEquipos = todosMunicipios
+        .Where(m => !m.Equipos.Any())
+        .OrderBy(m => m.Nombre)
+        .ToList();
+    
+    if (municipiosSinEquipos.Any())
+    {
+        Console.WriteLine("Municipios sin equipos:");
+        foreach (var municipio in municipiosSinEquipos)
+        {
+            Console.WriteLine($"  - {municipio.Nombre} (ID: {municipio.Id})");
+        }
+    }
+    else
+    {
+        Console.WriteLine("Todos los municipios tienen al menos un equipo");
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Related Entities
+
+<CardGroup cols={2}>
+  <Card title="Municipio Entity" icon="location-dot" href="/api/entities/municipio">
+    Domain model for municipalities
+  </Card>
+  <Card title="Equipo Repository" icon="shield" href="/api/repositories/equipo">
+    Teams associated with municipalities
+  </Card>
+</CardGroup>
+
+## Error Handling
+
+<Warning>
+Both `UpdateMunicipio` and `DeleteMunicipio` throw exceptions when the entity is not found. Always handle these exceptions:
+
+```csharp
+try
+{
+    var resultado = repositorioMunicipio.UpdateMunicipio(municipio);
+}
+catch (Exception ex)
+{
+    // Handle "Municipio not found" exception
+    Console.WriteLine($"Error: {ex.Message}");
+}
+```
+</Warning>
+
+## Foreign Key Constraints
+
+<Note>
+**Cascade Delete Restriction:**
+
+The DataContext configures all foreign keys with `DeleteBehavior.Restrict`. This means:
+
+- You cannot delete a municipality that has associated teams
+- You must first remove or reassign all teams before deleting the municipality
+- This prevents accidental data loss and maintains referential integrity
+
+```csharp DataContext.cs (Lines 37-40)
+foreach (var relationship in modelBuilder.Model.GetEntityTypes()
+    .SelectMany(e => e.GetForeignKeys()))
+{
+    relationship.DeleteBehavior = DeleteBehavior.Restrict;
+}
+```
+</Note>
+
+## Performance Considerations
+
+<Note>
+**Optimization Tips:**
+- `GetAllMunicipios()` uses `.AsNoTracking()` for improved read performance
+- `validateDuplicates()` calls `GetAllMunicipios()`, which may be inefficient for large datasets
+- Consider implementing indexed queries for duplicate validation in production
+- The `.Include(m => m.Equipos)` loads all teams - omit if not needed
+</Note>
+
+## Business Rules
+
+<AccordionGroup>
+  <Accordion title="Unique Municipality Names">
+    Municipality names must be unique (case-insensitive). The `validateDuplicates` method enforces this rule before creating or updating municipalities.
+  </Accordion>
+  
+  <Accordion title="Referential Integrity">
+    Municipalities cannot be deleted if they have associated teams. This ensures data consistency and prevents orphaned team records.
+  </Accordion>
+  
+  <Accordion title="Name Trimming">
+    Municipality names are trimmed during validation to prevent duplicates caused by leading/trailing whitespace.
+  </Accordion>
+</AccordionGroup>
