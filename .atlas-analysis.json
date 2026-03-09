@@ -1,0 +1,111 @@
+{
+  "projectType": "saas",
+  "projectName": "Tournament Management App",
+  "projectDescription": "A comprehensive web application for managing football tournaments, teams, players, and matches built with .NET Core and Entity Framework.",
+  "theme": "linden",
+  "primaryColor": "#2D5F3F",
+  "lightColor": "#4A9D5F",
+  "darkColor": "#1A3A28",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/tournament-management",
+              "features/team-management",
+              "features/player-management",
+              "features/match-management",
+              "features/user-authentication"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/docker",
+              "deployment/database-setup",
+              "deployment/configuration"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/managing-teams",
+              "guides/managing-players",
+              "guides/scheduling-matches",
+              "guides/user-roles"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Domain Models",
+            "pages": [
+              "api/models/director-tecnico",
+              "api/models/equipo",
+              "api/models/jugador",
+              "api/models/municipio",
+              "api/models/partido",
+              "api/models/posicion"
+            ]
+          },
+          {
+            "group": "Repositories",
+            "pages": [
+              "api/repositories/overview",
+              "api/repositories/director-tecnico",
+              "api/repositories/equipo",
+              "api/repositories/jugador",
+              "api/repositories/municipio",
+              "api/repositories/partido",
+              "api/repositories/posicion"
+            ]
+          },
+          {
+            "group": "Data Layer",
+            "pages": [
+              "api/data/context",
+              "api/data/migrations"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Complete tournament management system with teams, players, and matches",
+    "Entity Framework Core with SQLite/SQL Server support",
+    "ASP.NET Core Identity for user authentication and authorization",
+    "Docker containerization with multi-environment support",
+    "Repository pattern for data access with comprehensive CRUD operations",
+    "Razor Pages frontend with responsive design"
+  ],
+  "publicApiSurface": [
+    "DirectorTecnico - Technical director entity with validation",
+    "Equipo - Team entity with relationships to players and matches",
+    "Jugador - Player entity with position and team associations",
+    "Municipio - Municipality entity for team locations",
+    "Partido - Match entity tracking local and visiting teams",
+    "Posicion - Player position entity",
+    "IRepositorioDT - Technical director repository interface",
+    "IRepositorioEquipo - Team repository interface",
+    "IRepositorioJugador - Player repository interface",
+    "IRepositorioMunicipio - Municipality repository interface",
+    "IRepositorioPartido - Match repository interface",
+    "IRepositorioPosicion - Position repository interface",
+    "DataContext - Entity Framework database context"
+  ]
+}
